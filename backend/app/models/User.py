@@ -1,8 +1,10 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+import datetime
 from datetime import timedelta
 
+import jwt
 from flask import current_app
 from flask_jwt_extended import create_access_token, decode_token
 from flask_login import UserMixin
@@ -50,17 +52,16 @@ class User(UserMixin, Base):
 
     # 这个装饰器修饰的方法可以直接类名.方法调用 不用实例化
     @staticmethod
-    def reset_password(token, new_password):
-        s = Serializer(current_app.config['SECRET_KEY'])
+    def reset_password(userId, new_password):
         try:
-            data = s.loads(token.encode('utf8'))
-        except:
-            return False
-        uid = data.get('UserId')
-        with db.auto_commit():
-            user = User.query.get(uid)
+            user = User.query.get(userId)  # 获取用户对象
+            # 直接修改密码
             user.password = new_password
-        return True
+            db.session.commit()  # 提交更改
+            return True
+        except Exception as e:
+            logger.error(f"重置密码失败: {e}")
+            return False
 
     @staticmethod
     def generate_jwt(user, remember=False):
@@ -69,11 +70,13 @@ class User(UserMixin, Base):
         return create_access_token(identity=user.UserId, expires_delta=expires)
     # 用于重置邮件
     def generate_token(self, expiration=600):
-        print(f"UserId: {self.UserId}, type: {type(self.UserId)}")  # 确认类型
         secret_key = current_app.config['SECRET_KEY']
-        print(f"SECRET_KEY: {secret_key}, type: {type(secret_key)}")  # 确认类型
-        s = Serializer(secret_key, expiration)
-        return s.dumps({'UserId': self.UserId}).decode('utf-8')
+        payload = {
+            'UserId': self.UserId,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=expiration)
+        }
+        token = jwt.encode(payload, secret_key, algorithm='HS256')
+        return token
 
     @staticmethod
     def get_user_from_jwt(token):

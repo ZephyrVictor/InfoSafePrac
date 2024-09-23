@@ -50,15 +50,15 @@ class RegisterForm(EmailForm):
             raise ValidationError('支付密码必须是六位数字')
 
 
-class ResetPasswordForm(Form):
-    first_password = PasswordField(validators=[DataRequired(), Length(6, 32, message="密码长度至少需要6到32个字符之间"),
-                                               EqualTo("second_password", message="两次输入的密码不同")])
-    second_password = PasswordField(validators=[DataRequired(), Length(6, 32)])
-
-    def __init__(self,user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    def validate_first_password(self, field):
-        if not self.user.verify_password(field.data):
-            raise ValidationError("新密码不能与原密码相同")
+# class ResetPasswordForm(Form):
+#     first_password = PasswordField(validators=[DataRequired(), Length(6, 32, message="密码长度至少需要6到32个字符之间"),
+#                                                EqualTo("second_password", message="两次输入的密码不同")])
+#     second_password = PasswordField(validators=[DataRequired(), Length(6, 32)])
+#
+#     def __init__(self,user, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.user = user
+#
+#     def validate_first_password(self, field):
+#         if not self.user.verify_password(field.data):
+#             raise ValidationError("新密码不能与原密码相同")

@@ -1,12 +1,14 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
-from flask import request, jsonify
+import jwt
+from flask import request, jsonify, current_app
 from flask_login import logout_user
 
 from . import web
 from .. import logger
-from ..forms.auth import EmailForm, ResetPasswordForm
+from ..forms.auth import EmailForm
+from ..libs.email import send_mail
 from ..models.User import User
 from ..viewmodels.auth import do_register_form
 
@@ -134,10 +136,11 @@ def forget_password_request():
     if request.method == 'POST' and form.validate():
         account_email = form.email.data
         user = User.query.filter_by(email=account_email).first()
-        from app.libs.email import send_mail
-        send_mail(form.email.data, "重置您的密码", 'email/reset_password.html',
-                  user=user, token=user.generate_token())
-        return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
+        if user:
+            token = user.generate_token()  # 使用新的 token 生成方法
+            send_mail(form.email.data, "重置您的密码", 'email/reset_password.html', user=user, token=token)
+            return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
+        return jsonify({"msg": "用户不存在"}), 400
     else:
         return jsonify({"msg": "请输入有效的邮箱地址"}), 400
 
@@ -164,16 +167,42 @@ def forget_password(token):
               400:
                 description: 密码重置失败或输入错误
         """
-    form = ResetPasswordForm(request.form)
-    if request.method == 'POST' and form.validate():
-        new_password = form.first_password.data
-        if User.reset_password(token, new_password):
-            return jsonify({"msg": "密码重置成功"}), 200
-        else:
-            return jsonify({"msg": "密码重置失败"}), 400
-    else:
-        error_messages = {field.name: field.errors for field in form}
-        return jsonify({"errors": error_messages}), 400
+    # 妈的急了 直接硬性校验了
+    if request.method == 'POST':
+        # 获取新密码
+        data = request.json
+        first_password = data.get('first_password')
+        second_password = data.get('second_password')
+
+        # 校验密码长度
+        if not (6 <= len(first_password) <= 32):
+            return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
+
+        # 校验两次密码是否一致
+        if first_password != second_password:
+            return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
+
+        try:
+            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            user = User.query.get(payload['UserId'])
+            if user:
+                # 确保新密码与原密码不同
+                if user.verify_password(first_password):
+                    return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
+
+                # 重置密码
+                if User.reset_password(user.UserId, first_password):
+                    return jsonify({"msg": "密码重置成功"}), 200
+                else:
+                    return jsonify({"msg": "密码重置失败"}), 400
+            else:
+                return jsonify({"msg": "无效的用户"}), 400
+        except jwt.ExpiredSignatureError:
+            return jsonify({"msg": "令牌已过期"}), 400
+        except jwt.InvalidTokenError:
+            return jsonify({"msg": "无效的令牌"}), 400
+
+    return jsonify({"msg": "无效的请求方法"}), 405
 
 
 @web.route('/logout')
