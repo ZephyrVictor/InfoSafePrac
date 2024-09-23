@@ -1,20 +1,30 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+from flasgger import Swagger
 from flask import Flask
+from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_mail import Mail
 
 from app.models.base import db
+from app.utils.Logger import WebLogger
 
 login_manager = LoginManager()
 mail = Mail()
+logger = WebLogger()
+
 
 def create_app():
     app = Flask(__name__)
+    swagger = Swagger(app)
 
     app.config.from_object('app.setting')
     app.config.from_object('app.secure')
+    app.config['JWT_SECRET_KEY'] = 'ssssseeeeeffffff/sdfsadf^&*KKKKKL*(*(*))'  # 用于加密JWT的密钥
+
+    # 初始化JWTManager
+    jwt = JWTManager(app)
 
     register_blueprint(app)
 
@@ -25,7 +35,9 @@ def create_app():
     login_manager.login_view = 'web.login'
     login_manager.login_message = '请先登录或注册'
     mail.init_app(app)
+
     return app
+
 
 def register_blueprint(app):
     from app.web import web

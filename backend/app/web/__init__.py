@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify
 web = Blueprint('web', __name__)
 
 
-@web.app.errorhandler(404)
+@web.errorhandler(404)
 def not_found(e):
     return jsonify({"result": "Page Not Found"})
 

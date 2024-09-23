@@ -1,30 +1,35 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+from datetime import timedelta
+
 from flask import current_app
+from flask_jwt_extended import create_access_token, decode_token
 from flask_login import UserMixin
 from itsdangerous import Serializer
 from sqlalchemy import Column, Integer, String, Boolean, Float
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from app import login_manager
+from app import login_manager, logger
 from app.models.base import Base, db
 
 
-class User(UserMixin,Base):
-    UserId = Column(Integer, primary_key=True) # 用户id
-    nickname = Column(String(24),nullable=False)
-    email = Column(String(50),unique = True, nullable = False)
-    _password = Column(String(255),nullable=False) # hashed_password
-    is_examined = Column(Boolean, default=False) # 只有经过审核的人才可以申请银行卡
-    _payPassword = Column(String(255),nullable=False) # 用户支付密码
+class User(UserMixin, Base):
+    UserId = Column(Integer, primary_key=True)  # 用户id
+    nickname = Column(String(24), nullable=False)
+    email = Column(String(50), unique=True, nullable=False)
+    _password = Column(String(255), nullable=False)  # hashed_password
+    isExamined = Column(Boolean, default=False)  # 只有经过审核的人才可以申请银行卡
+    _payPassword = Column(String(255), nullable=False)  # 用户支付密码
+    isAdmin = Column(Boolean, default=False)
+
     # 用户登录密码
     @property
     def password(self):
         return self._password
 
     @password.setter
-    def password(self,raw):
+    def password(self, raw):
         self._password = generate_password_hash(raw)
 
     @property
@@ -57,25 +62,30 @@ class User(UserMixin,Base):
             user.password = new_password
         return True
 
+    @staticmethod
+    def generate_jwt(user, remember=False):
+        # 过期时间
+        expires = timedelta(days=7) if remember else timedelta(days=1)
+        return create_access_token(identity=user.UserId, expires_delta=expires)
+    # 用于重置邮件
+    def generate_token(self, expiration=600):
+        print(f"UserId: {self.UserId}, type: {type(self.UserId)}")  # 确认类型
+        secret_key = current_app.config['SECRET_KEY']
+        print(f"SECRET_KEY: {secret_key}, type: {type(secret_key)}")  # 确认类型
+        s = Serializer(secret_key, expiration)
+        return s.dumps({'UserId': self.UserId}).decode('utf-8')
+
+    @staticmethod
+    def get_user_from_jwt(token):
+        try:
+            decoded_token = decode_token(token)
+            user_id = decoded_token['identity']
+            return User.query.get(user_id)
+        except:
+            logger.error('JWT解析失败')
+
+
+# 请在app/models/User.py中补充完整代码
 @login_manager.user_loader
 def get_user(uid):
     return User.query.get(int(uid))
-
-
-class Admin(UserMixin,Base):
-    adminID = Column(Integer, primary_key=True)
-    _adminPassword = Column(String(255),nullable= False)
-    adminNickName = Column(String(255),nullable=False)
-
-
-    @property
-    def adminPassword(self):
-        return self._adminPassword
-
-    @adminPassword.setter
-    def adminPassword(self,raw):
-        self._adminPassword = generate_password_hash(raw)
-
-    def verify_adminPassword(self,raw):
-        return check_password_hash(self._adminPasswordm,raw)
-
