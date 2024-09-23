@@ -43,7 +43,8 @@ class User(UserMixin,Base):
     def verify_password(self, raw):
         return check_password_hash(self._password, raw)
 
-    @staticmethod #这个装饰器修饰的方法可以直接类名.方法调用 不用实例化
+    # 这个装饰器修饰的方法可以直接类名.方法调用 不用实例化
+    @staticmethod
     def reset_password(token, new_password):
         s = Serializer(current_app.config['SECRET_KEY'])
         try:
@@ -59,3 +60,22 @@ class User(UserMixin,Base):
 @login_manager.user_loader
 def get_user(uid):
     return User.query.get(int(uid))
+
+
+class Admin(UserMixin,Base):
+    adminID = Column(Integer, primary_key=True)
+    _adminPassword = Column(String(255),nullable= False)
+    adminNickName = Column(String(255),nullable=False)
+
+
+    @property
+    def adminPassword(self):
+        return self._adminPassword
+
+    @adminPassword.setter
+    def adminPassword(self,raw):
+        self._adminPassword = generate_password_hash(raw)
+
+    def verify_adminPassword(self,raw):
+        return check_password_hash(self._adminPasswordm,raw)
+
