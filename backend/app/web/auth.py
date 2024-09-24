@@ -50,7 +50,7 @@ def register():
         """
     data = request.get_json()
     result = do_register_form(data)
-    return result
+    return result, 201
 
 
 @web.route('/login', methods=['POST'])
@@ -111,7 +111,7 @@ def login():
     response.set_cookie('access_token', access_token, httponly=True,
                         max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24)
 
-    return response, 200
+    return response, 201
 
 
 # 发送重置密码请求
@@ -192,7 +192,7 @@ def forget_password(token):
 
                 # 重置密码
                 if User.reset_password(user.UserId, first_password):
-                    return jsonify({"msg": "密码重置成功"}), 200
+                    return jsonify({"msg": "密码重置成功"}), 201
                 else:
                     return jsonify({"msg": "密码重置失败"}), 400
             else:

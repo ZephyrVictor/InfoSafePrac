@@ -24,7 +24,7 @@ class User(UserMixin, Base):
     isExamined = Column(Boolean, default=False)  # 只有经过审核的人才可以申请银行卡
     _payPassword = Column(String(255), nullable=False)  # 用户支付密码
     isAdmin = Column(Boolean, default=False)
-
+    IdCardNumber = Column(String(18), nullable=True)  # 用户的身份证号，用来模拟实名认证，用户只有在提交了身份证号之后管理员才能够审核。
     # 用户登录密码
     @property
     def password(self):
@@ -52,9 +52,9 @@ class User(UserMixin, Base):
 
     # 这个装饰器修饰的方法可以直接类名.方法调用 不用实例化
     @staticmethod
-    def reset_password(userId, new_password):
+    def reset_password(user_id, new_password):
         try:
-            user = User.query.get(userId)  # 获取用户对象
+            user = User.query.get(user_id)  # 获取用户对象
             # 直接修改密码
             user.password = new_password
             db.session.commit()  # 提交更改
@@ -68,6 +68,7 @@ class User(UserMixin, Base):
         # 过期时间
         expires = timedelta(days=7) if remember else timedelta(days=1)
         return create_access_token(identity=user.UserId, expires_delta=expires)
+
     # 用于重置邮件
     def generate_token(self, expiration=600):
         secret_key = current_app.config['SECRET_KEY']
