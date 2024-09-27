@@ -25,6 +25,7 @@ class User(UserMixin, Base):
     _payPassword = Column(String(255), nullable=False)  # 用户支付密码
     isAdmin = Column(Boolean, default=False)
     IdCardNumber = Column(String(18), nullable=True)  # 用户的身份证号，用来模拟实名认证，用户只有在提交了身份证号之后管理员才能够审核。
+    chapterCode = Column(String(6), nullable=True)  # 用户的验证码
     # 用户登录密码
     @property
     def password(self):
