@@ -3,13 +3,14 @@ __author__ = 'Zephyr369'
 
 import datetime
 from datetime import timedelta
+import random
 
 import jwt
 from flask import current_app
 from flask_jwt_extended import create_access_token, decode_token
 from flask_login import UserMixin
 from itsdangerous import Serializer
-from sqlalchemy import Column, Integer, String, Boolean, Float
+from sqlalchemy import Column, Integer, String, Boolean, Float, UniqueConstraint
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import login_manager, logger
@@ -19,13 +20,26 @@ from app.models.base import Base, db
 class User(UserMixin, Base):
     UserId = Column(Integer, primary_key=True)  # 用户id
     nickname = Column(String(24), nullable=False)
-    email = Column(String(50), unique=True, nullable=False)
+    email = Column(String(50), nullable=False)
     _password = Column(String(255), nullable=False)  # hashed_password
     isExamined = Column(Boolean, default=False)  # 只有经过审核的人才可以申请银行卡
     _payPassword = Column(String(255), nullable=False)  # 用户支付密码
     isAdmin = Column(Boolean, default=False)
     IdCardNumber = Column(String(18), nullable=True)  # 用户的身份证号，用来模拟实名认证，用户只有在提交了身份证号之后管理员才能够审核。
     captcha = Column(String(6), nullable=True)  # 用户的验证码
+
+    # 用户的银行卡和用户的商店
+    user_type = Column(String(20), nullable = False, default='bank')  # 用户类型：'bank'（银行用户）、'shop'（外卖平台用户）、'both'（两者都是）
+    bank_user_id = Column(Integer, nullable=True)  # 关联的银行用户ID
+    # 联合索引的约束 保证了email和user_type的组合是唯一的
+    __table_args__ = (
+        UniqueConstraint('email', 'user_type', name='_email_user_type_uc'),
+    )
+
+    # 关联关系
+    bank_cards = db.relationship('BankCard', backref='user', lazy='dynamic')
+    stores = db.relationship('Store', backref='owner', lazy='dynamic')
+
     # 用户登录密码
     @property
     def password(self):
@@ -86,8 +100,28 @@ class User(UserMixin, Base):
             decoded_token = decode_token(token)
             user_id = decoded_token['identity']
             return User.query.get(user_id)
-        except:
-            logger.error('JWT解析失败')
+        except Exception as e:
+            logger.error(f'JWT解析失败: {e}')
+            return None
+
+    def set_captcha(self):
+        """生成验证码"""
+        self.captcha = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        db.session.commit()
+
+    def verify_captcha(self, input_captcha):
+        """验证验证码"""
+        if self.captcha == input_captcha:
+            self.captcha = None
+            db.session.commit()
+            return True
+        return False
+
+    def is_bank_user(self):
+        return self.user_type in ['bank', 'both']
+
+    def is_shop_user(self):
+        return self.user_type in ['shop', 'both']
 
 
 # 请在app/models/User.py中补充完整代码

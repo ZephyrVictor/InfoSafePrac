@@ -7,7 +7,7 @@ from flask_login import logout_user
 
 from . import web
 from .. import logger
-from ..forms.auth import EmailForm
+from ..forms.auth import EmailForm, LoginForm
 from ..libs.email import send_mail
 from ..models.User import User
 from ..viewmodels.auth import do_register_form
@@ -49,6 +49,7 @@ def register():
             description: 用户已存在
         """
     data = request.get_json()
+
     result = do_register_form(data)
     return result, 201
 
@@ -56,60 +57,69 @@ def register():
 @web.route('/login', methods=['POST'])
 def login():
     """
-        用户登录接口
-        ---
-        parameters:
-          - name: data
-            in: body
-            required: true
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  example: "user@example.com"
-                password:
-                  type: string
-                  example: "userpassword"
-                remember:
-                  type: boolean
-                  example: false
-        responses:
-          200:
-            description: 登录成功
-          400:
-            description: 输入错误
-          404:
-            description: 用户不存在
-          401:
-            description: 密码错误
-        """
-    # 获取请求数据
+    用户登录接口
+    ---
+    parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              example: "user@example.com"
+            password:
+              type: string
+              example: "userpassword"
+            user_type:
+              type: string
+              example: "shop"  # 或者 "bank"
+            remember:
+              type: boolean
+              example: false
+    responses:
+      200:
+        description: 登录成功
+      400:
+        description: 输入错误
+      404:
+        description: 用户不存在
+      401:
+        description: 密码错误
+    """
     data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    form = LoginForm(data=data)
+
+    if not form.validate():
+        return jsonify({"msg": form.errors}), 400
+
+    email = form.email.data
+    password = form.password.data
+    user_type = form.user_type.data
     remember = data.get('remember', False)
 
-    if not email or not password:
-        return jsonify({"msg": "邮箱和密码是必需的"}), 400
-
-    # 查找用户
-    user = User.query.filter_by(email=email).first()
+    # 查找用户，包含 user_type
+    user = User.query.filter_by(email=email, user_type=user_type).first()
     if user is None:
-        return jsonify({"msg": "用户不存在"}), 404
+        return jsonify({"msg": "用户不存在或用户类型不匹配"}), 404
 
-    # 验证密码
     if not user.verify_password(password):
         logger.info(f"用户{user.nickname}密码输入错误")
         return jsonify({"msg": "密码不正确"}), 401
 
-    # 生成 JWT
     access_token = user.generate_jwt(user, remember)
     logger.info(f"用户{user.nickname}登录成功")
-    # 设置 Cookie
+
     response = jsonify({"msg": "登录成功", "access_token": access_token})
-    response.set_cookie('access_token', access_token, httponly=True,
-                        max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24)
+    response.set_cookie(
+        'access_token',
+        access_token,
+        httponly=True,
+        secure=True,
+        samesite='Lax',
+        max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24
+    )
 
     return response, 201
 

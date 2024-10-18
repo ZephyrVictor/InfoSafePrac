@@ -6,6 +6,8 @@ from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from app.models.base import db
 from app.utils.Logger import WebLogger
@@ -13,6 +15,11 @@ from app.utils.Logger import WebLogger
 login_manager = LoginManager()
 mail = Mail()
 logger = WebLogger()
+# 限制访问频率
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 
 def create_app():
@@ -35,6 +42,7 @@ def create_app():
     login_manager.login_view = 'web.login'
     login_manager.login_message = '请先登录或注册'
     mail.init_app(app)
+    limiter.init_app(app)
 
     return app
 

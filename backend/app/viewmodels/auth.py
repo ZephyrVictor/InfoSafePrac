@@ -29,6 +29,13 @@ def do_register_form(data: json) -> json:
     # 生成 JWT 和 Cookie
     access_token = new_user.generate_jwt(new_user, False)
     response = jsonify({"msg": "注册成功", "access_token": access_token})
-    response.set_cookie('access_token', access_token, httponly=True, max_age=60 * 60 * 24)
+    response.set_cookie(
+        'access_token',
+        access_token,
+        httponly=True,
+        secure=True,
+        samesite='Lax',
+        max_age=60 * 60 * 24
+    )
 
     return response, 201

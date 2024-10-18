@@ -6,7 +6,7 @@ import re
 from flask import jsonify
 # 这些等等 打算放到前端校验
 # 2024-09-23 20:14 不行 哪怕前端校验了 也要后端校验 万一前端被绕过了呢
-from wtforms import StringField, Form, PasswordField
+from wtforms import StringField, Form, PasswordField, SelectField
 from wtforms.validators import DataRequired, length, Email, Length, ValidationError, EqualTo
 
 from app import logger
@@ -19,10 +19,14 @@ class EmailForm(Form):
 
 
 class LoginForm(EmailForm):
-    password = PasswordField(validators=[DataRequired(message="密码不可以为空"), length(6, 32)])
+    password = PasswordField(validators=[DataRequired(message="密码不可以为空"), Length(6, 32)])
+    user_type = SelectField(
+        choices=[('shop', '外卖平台用户'), ('bank', '银行用户')],
+        validators=[DataRequired(message="请选择用户类型")]
+    )
 
 
-class RegisterForm(EmailForm):
+class RegisterForm(Form):
     nickname = StringField(validators=[
         DataRequired(),
         Length(3, 24, message='昵称长度必须在3到24个字符之间')
@@ -35,11 +39,19 @@ class RegisterForm(EmailForm):
         DataRequired(),
         Length(6, 32)
     ])
-    payPassword = StringField(validators=[DataRequired()])  # 支付密码字段
+    payPassword = StringField(validators=[
+        DataRequired(),
+        Length(6, 6, message='支付密码必须是六位数字')
+    ])  # 支付密码字段
+    user_type = SelectField(
+        choices=[('shop', '外卖平台用户'), ('bank', '银行用户')],
+        validators=[DataRequired(message="请选择用户类型")]
+    )
 
     def validate_email(self, field):
-        if User.query.filter_by(email=field.data).first():
-            raise ValidationError('用户已存在')
+        user_type = self.user_type.data
+        if User.query.filter_by(email=field.data, user_type=user_type).first():
+            raise ValidationError('该邮箱已被注册为该类型的用户')
 
     def validate_nickname(self, field):
         if User.query.filter_by(nickname=field.data).first():
