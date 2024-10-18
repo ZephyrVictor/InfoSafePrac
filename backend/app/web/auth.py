@@ -2,55 +2,69 @@
 __author__ = 'Zephyr369'
 
 import jwt
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, Blueprint
 from flask_login import logout_user
+from flask_jwt_extended import jwt_required
 
-from . import web
 from .. import logger
-from ..forms.auth import EmailForm, LoginForm
+from ..forms.auth import EmailForm
 from ..libs.email import send_mail
 from ..models.BankUser import BankUser
 from ..models.ShopUser import ShopUser
-from ..models.User import User
+# from ..models.User import User
 from ..models.base import db
-from ..viewmodels.auth import do_register_form
 
+auth_bp = Blueprint('auth', __name__)
 
-@web.route("/bank/register", methods=['POST'])
+@auth_bp.route("/bank/register", methods=['POST'])
 def bank_register():
     """
-        银行用户注册接口
-        ---
-        parameters:
-          - name: data
-            in: body
-            required: true
-            schema:
-              type: object
-              properties:
-                nickname:
-                  type: string
-                  example: "用户昵称"
-                email:
-                  type: string
-                  example: "user@example.com"
-                password:
-                  type: string
-                  example: "userpassword"
-                payPassword:
-                  type: string
-                  example: "paypassword"
-                remember:
-                  type: boolean
-                  example: false
-        responses:
-          201:
-            description: 注册成功
-          400:
-            description: 输入错误
-          404:
-            description: 用户已存在
-        """
+    银行用户注册接口
+    ---
+    tags:
+      - Bank Auth
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - nickname
+            - email
+            - password
+            - payPassword
+          properties:
+            nickname:
+              type: string
+              example: 用户昵称
+            email:
+              type: string
+              example: user@example.com
+            password:
+              type: string
+              example: userpassword
+            payPassword:
+              type: string
+              example: paypassword
+    responses:
+      201:
+        description: 注册成功
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 银行用户注册成功
+      400:
+        description: 输入错误或邮箱已被注册
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 所有字段都是必需的 或 该邮箱已被注册
+    """
     data = request.get_json()
     nickname = data.get('nickname')
     email = data.get('email')
@@ -64,51 +78,76 @@ def bank_register():
     if existing_user:
         return jsonify({'msg': '该邮箱已被注册'}), 400
 
-    user = BankUser(
-        nickname=nickname,
-        email=email,
-        password=password,
-        payPassword=payPassword
-    )
+    user = BankUser()
+    user.set_attrs(data)
     db.session.add(user)
     db.session.commit()
 
     return jsonify({'msg': '银行用户注册成功'}), 201
 
 
-@web.route('/bank/login', methods=['POST'])
+@auth_bp.route('/bank/login', methods=['POST'])
 def bank_login():
     """
     银行用户登录接口
     ---
+    tags:
+      - Bank Auth
     parameters:
-      - name: data
+      - name: body
         in: body
         required: true
         schema:
           type: object
+          required:
+            - email
+            - password
           properties:
             email:
               type: string
-              example: "user@example.com"
+              example: user@example.com
             password:
               type: string
-              example: "userpassword"
-            user_type:
-              type: string
-              example: "shop"  # 或者 "bank"
+              example: userpassword
             remember:
               type: boolean
               example: false
     responses:
       200:
         description: 登录成功
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 登录成功
+            access_token:
+              type: string
+              example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
       400:
         description: 输入错误
-      404:
-        description: 用户不存在
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 邮箱和密码是必需的
       401:
         description: 密码错误
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 密码不正确
+      404:
+        description: 用户不存在
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 用户不存在
     """
     data = request.get_json()
     email = data.get('email')
@@ -139,113 +178,216 @@ def bank_login():
     )
     return response, 200
 
+# TODO: 修改一下修改密码的逻辑
+# @auth_bp.route("/reset/password", methods=['POST'])
+# def forget_password_request():
+#     """
+#     发送重置密码请求
+#     ---
+#     tags:
+#       - Auth
+#     parameters:
+#       - name: body
+#         in: body
+#         required: true
+#         schema:
+#           type: object
+#           required:
+#             - email
+#           properties:
+#             email:
+#               type: string
+#               description: 用户的邮箱地址
+#               example: user@example.com
+#     responses:
+#       200:
+#         description: 重置密码邮件已发送，请查收
+#         schema:
+#           type: object
+#           properties:
+#             msg:
+#               type: string
+#               example: 重置密码邮件已发送，请查收
+#       400:
+#         description: 输入错误或用户不存在
+#         schema:
+#           type: object
+#           properties:
+#             msg:
+#               type: string
+#               example: 请输入有效的邮箱地址 或 用户不存在
+#     """
+#     data = request.get_json()
+#     email = data.get('email')
+#
+#     if not email:
+#         return jsonify({"msg": "请输入有效的邮箱地址"}), 400
+#
+#     user = User.query.filter_by(email=email).first()
+#     if user:
+#         token = user.generate_token()
+#         send_mail(email, "重置您的密码", 'email/reset_password.html', user=user, token=token)
+#         return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
+#     return jsonify({"msg": "用户不存在"}), 400
+#
+#
+# @auth_bp.route("/reset/password/<token>", methods=['POST'])
+# def forget_password(token):
+#     """
+#     重置密码接口
+#     ---
+#     tags:
+#       - Auth
+#     parameters:
+#       - name: token
+#         in: path
+#         type: string
+#         required: true
+#         description: 重置密码的令牌
+#       - name: body
+#         in: body
+#         required: true
+#         schema:
+#           type: object
+#           required:
+#             - first_password
+#             - second_password
+#           properties:
+#             first_password:
+#               type: string
+#               description: 新密码
+#               example: newpassword123
+#             second_password:
+#               type: string
+#               description: 确认新密码
+#               example: newpassword123
+#     responses:
+#       201:
+#         description: 密码重置成功
+#         schema:
+#           type: object
+#           properties:
+#             msg:
+#               type: string
+#               example: 密码重置成功
+#       400:
+#         description: 密码重置失败或输入错误
+#         schema:
+#           type: object
+#           properties:
+#             msg:
+#               type: string
+#               example: 密码重置失败 或 输入错误信息
+#       405:
+#         description: 无效的请求方法
+#         schema:
+#           type: object
+#           properties:
+#             msg:
+#               type: string
+#               example: 无效的请求方法
+#     """
+#     if request.method == 'POST':
+#         data = request.json
+#         first_password = data.get('first_password')
+#         second_password = data.get('second_password')
+#
+#         if not (6 <= len(first_password) <= 32):
+#             return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
+#
+#         if first_password != second_password:
+#             return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
+#
+#         try:
+#             payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+#             user = User.query.get(payload['UserId'])
+#             if user:
+#                 if user.verify_password(first_password):
+#                     return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
+#
+#                 if User.reset_password(user.UserId, first_password):
+#                     return jsonify({"msg": "密码重置成功"}), 201
+#                 else:
+#                     return jsonify({"msg": "密码重置失败"}), 400
+#             else:
+#                 return jsonify({"msg": "无效的用户"}), 400
+#         except jwt.ExpiredSignatureError:
+#             return jsonify({"msg": "令牌已过期"}), 400
+#         except jwt.InvalidTokenError:
+#             return jsonify({"msg": "无效的令牌"}), 400
+#
+#     return jsonify({"msg": "无效的请求方法"}), 405
 
-# 发送重置密码请求
-@web.route("/reset/password", methods=['POST', 'GET'])
-def forget_password_request():
-    """
-        发送重置密码请求
-        ---
-        parameters:
-          - name: email
-            in: formData
-            type: string
-            required: true
-            description: 用户的邮箱地址
-        responses:
-          200:
-            description: 重置密码邮件已发送，请查收
-          400:
-            description: 请输入有效的邮箱地址
-        """
-    form = EmailForm(request.form)
-    if request.method == 'POST' and form.validate():
-        account_email = form.email.data
-        user = User.query.filter_by(email=account_email).first()
-        if user:
-            token = user.generate_token()  # 使用新的 token 生成方法
-            send_mail(form.email.data, "重置您的密码", 'email/reset_password.html', user=user, token=token)
-            return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
-        return jsonify({"msg": "用户不存在"}), 400
-    else:
-        return jsonify({"msg": "请输入有效的邮箱地址"}), 400
 
-
-@web.route("/reset/password/<token>", methods=['POST', 'GET'])
-def forget_password(token):
-    """
-            重置密码接口
-            ---
-            parameters:
-              - name: token
-                in: path
-                type: string
-                required: true
-                description: 重置密码的令牌
-              - name: first_password
-                in: formData
-                type: string
-                required: true
-                description: 新密码
-            responses:
-              200:
-                description: 密码重置成功
-              400:
-                description: 密码重置失败或输入错误
-        """
-    # 妈的急了 直接硬性校验了
-    if request.method == 'POST':
-        # 获取新密码
-        data = request.json
-        first_password = data.get('first_password')
-        second_password = data.get('second_password')
-
-        # 校验密码长度
-        if not (6 <= len(first_password) <= 32):
-            return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
-
-        # 校验两次密码是否一致
-        if first_password != second_password:
-            return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
-
-        try:
-            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-            user = User.query.get(payload['UserId'])
-            if user:
-                # 确保新密码与原密码不同
-                if user.verify_password(first_password):
-                    return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
-
-                # 重置密码
-                if User.reset_password(user.UserId, first_password):
-                    return jsonify({"msg": "密码重置成功"}), 201
-                else:
-                    return jsonify({"msg": "密码重置失败"}), 400
-            else:
-                return jsonify({"msg": "无效的用户"}), 400
-        except jwt.ExpiredSignatureError:
-            return jsonify({"msg": "令牌已过期"}), 400
-        except jwt.InvalidTokenError:
-            return jsonify({"msg": "无效的令牌"}), 400
-
-    return jsonify({"msg": "无效的请求方法"}), 405
-
-
-@web.route('/logout')
+@auth_bp.route('/logout')
+@jwt_required()
 def logout():
     """
-        退出登录接口
-        ---
-        responses:
-          201:
-            description: 退出登录成功
-        """
+    退出登录接口
+    ---
+    tags:
+      - Auth
+    security:
+      - Bearer: []
+    responses:
+      201:
+        description: 退出登录成功
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 退出登录成功
+    """
     logout_user()
     return jsonify({"msg": "退出登录成功"}), 201
 
 
-@web.route("/register", methods=['POST'])
+@auth_bp.route("/register", methods=['POST'])
 def register():
+    """
+    外卖平台用户注册接口
+    ---
+    tags:
+      - Shop Auth
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - nickname
+            - email
+            - password
+          properties:
+            nickname:
+              type: string
+              example: 用户昵称
+            email:
+              type: string
+              example: user@example.com
+            password:
+              type: string
+              example: userpassword
+    responses:
+      201:
+        description: 注册成功
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 注册成功
+      400:
+        description: 输入错误或邮箱已被注册
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 所有字段都是必需的 或 该邮箱已被注册
+    """
     data = request.get_json()
     nickname = data.get('nickname')
     email = data.get('email')
@@ -258,18 +400,77 @@ def register():
     if existing_user:
         return jsonify({'msg': '该邮箱已被注册'}), 400
 
-    user = ShopUser(
-        nickname=nickname,
-        email=email,
-        password=password
-    )
-    db.session.add(user)
+    shop_user = ShopUser()
+    shop_user.set_attrs(data)
+    db.session.add(shop_user)
     db.session.commit()
 
     return jsonify({'msg': '注册成功'}), 201
 
-@web.route('/login', methods=['POST'])
+
+@auth_bp.route('/login', methods=['POST'])
 def login():
+    """
+    外卖平台用户登录接口
+    ---
+    tags:
+      - Shop Auth
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              example: user@example.com
+            password:
+              type: string
+              example: userpassword
+            remember:
+              type: boolean
+              example: false
+    responses:
+      200:
+        description: 登录成功
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 登录成功
+            access_token:
+              type: string
+              example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+      400:
+        description: 输入错误
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 邮箱和密码是必需的
+      401:
+        description: 密码错误
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 密码不正确
+      404:
+        description: 用户不存在
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 用户不存在
+    """
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')

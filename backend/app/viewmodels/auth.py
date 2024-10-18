@@ -7,7 +7,7 @@ from flask import jsonify, json
 from werkzeug.exceptions import BadRequest
 
 from app.forms.auth import RegisterForm
-from app.models.User import User
+# from app.models.User import User
 from app.models.base import db
 
 

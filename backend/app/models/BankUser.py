@@ -16,7 +16,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import logger
 from app.models.base import Base, db
 
-
+# TODO: 将BankUser继承于AbstractUser
 class BankUser(Base):
     __tablename__ = 'bank_user'
 
@@ -30,7 +30,7 @@ class BankUser(Base):
     IdCardNumber = Column(String(18), nullable=True)  # 身份证号
     captcha = Column(String(6), nullable=True)  # 验证码
 
-    bank_cards = db.relationship('BankCard', backref='user', lazy='dynamic')
+    bank_cards = db.relationship('BankCard', back_populates='user', lazy='dynamic')
 
     @property
     def password(self):

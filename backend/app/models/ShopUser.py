@@ -17,7 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import login_manager, logger
 from app.models.base import Base, db
 
-
+# TODO: 将ShopUser继承于AbstractUser
 class ShopUser(UserMixin, Base):
     __tablename__ = 'shop_user'
 
@@ -29,7 +29,7 @@ class ShopUser(UserMixin, Base):
     captcha = Column(String(6), nullable=True)  # 验证码
     bank_user_id = Column(Integer, nullable=True)  # 关联的银行用户ID
 
-    stores = db.relationship('Store', backref='owner', lazy='dynamic')
+    stores = db.relationship('Store', back_populates='owner', lazy='dynamic')
 
     @property
     def password(self):

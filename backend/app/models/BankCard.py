@@ -14,13 +14,14 @@ class BankCard(Base):
 
     CardId = Column(Integer, primary_key=True)
     card_number = Column(String(19), unique=True, nullable=False)
-    user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
+    # user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
     balance = Column(Float, default=0.0)
     is_active = Column(Boolean, default=False)
     captcha = Column(String(6), nullable=True)
     captcha_expiry = Column(DateTime, nullable=True)
 
-    user = relationship('BankUser', backref='bank_cards')
+    user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
+    user = relationship('BankUser', back_populates='bank_cards')
 
     def __init__(self, **kwargs):
         super(BankCard, self).__init__(**kwargs)

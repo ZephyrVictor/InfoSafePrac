@@ -13,9 +13,10 @@ class Store(Base):
     StoreId = Column(Integer, primary_key=True)
     store_name = Column(String(50), nullable=False)
     store_type = Column(String(50), nullable=False)
-    owner_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)
+    # owner_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)
     is_approved = Column(Boolean, default=False)
     is_open = Column(Boolean, default=False)
 
-    owner = relationship('ShopUser', backref='stores')
+    owner_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)
+    owner = relationship('ShopUser', back_populates='stores')
     orders = relationship('Order', backref='store', lazy='dynamic')

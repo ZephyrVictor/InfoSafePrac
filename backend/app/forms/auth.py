@@ -10,7 +10,7 @@ from wtforms import StringField, Form, PasswordField, SelectField
 from wtforms.validators import DataRequired, length, Email, Length, ValidationError, EqualTo
 
 from app import logger
-from app.models.User import User
+# from app.models.User import User
 from app.utils.Logger import WebLogger
 
 
