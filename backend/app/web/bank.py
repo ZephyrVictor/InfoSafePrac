@@ -4,30 +4,38 @@ __author__ = 'Zephyr369'
 # app/web/bank.py
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 
 from app.models.User import User
 from app.models.BankCard import BankCard
 from app.libs.email import send_mail
 from app import db
 from . import web
+from ..models.BankUser import BankUser
 
 
 # bank = Blueprint('bank', __name__)
 
+def bank_user_required(fn):
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        claims = get_jwt()
+        if claims.get('user_type') != 'bank':
+            return jsonify({'msg': '需要银行用户身份'}), 403
+        return fn(*args, **kwargs)
+    wrapper.__name__ = fn.__name__
+    return wrapper
+
 
 @web.route('/apply_bank_card', methods=['POST'])
 @jwt_required()
+@bank_user_required
 def apply_bank_card():
     """
     用户申请绑定银行卡
     """
     user_id = get_jwt_identity()
-    # 得是银行用户
-    user = User.query.get(user_id).filter_by(user_type="bank").first()
-
-    if not user:
-        return jsonify({'msg': '当前用户不存在'}), 403
+    user = BankUser.query.get(user_id)
 
     if not user.isExamined:
         return jsonify({'msg': '用户未经过审核，无法绑定银行卡'}), 403
@@ -45,6 +53,7 @@ def apply_bank_card():
 
 @web.route('/confirm_bank_card', methods=['POST'])
 @jwt_required()
+@bank_user_required
 def confirm_bank_card():
     """
     用户确认绑定银行卡
@@ -68,6 +77,7 @@ def confirm_bank_card():
 
 @web.route('/deposit', methods=['POST'])
 @jwt_required()
+@bank_user_required
 def deposit():
     """
     用户充值
@@ -93,6 +103,7 @@ def deposit():
 
 @web.route('/withdraw', methods=['POST'])
 @jwt_required()
+@bank_user_required
 def withdraw():
     """
     用户取钱

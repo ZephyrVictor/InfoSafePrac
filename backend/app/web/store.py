@@ -2,7 +2,7 @@
 __author__ = 'Zephyr369'
 
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 
 from . import web
 from app.models.Store import Store
@@ -10,8 +10,21 @@ from ..models.Order import Order
 from ..models.base import db
 
 
+def shop_user_required(fn):
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        claims = get_jwt()
+        if claims.get('user_type') != 'shop':
+            return jsonify({'msg': '需要外卖平台用户身份'}), 403
+        return fn(*args, **kwargs)
+
+    wrapper.__name__ = fn.__name__
+    return wrapper
+
+
 @web.route('/apply_store', methods=['POST'])
 @jwt_required()
+@shop_user_required
 def apply_store():
     """
     申请开店
@@ -30,6 +43,7 @@ def apply_store():
 
 @web.route('/view_earnings', methods=['GET'])
 @jwt_required()
+@shop_user_required
 def view_earnings():
     """
     商家查看收益

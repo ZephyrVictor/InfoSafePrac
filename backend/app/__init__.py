@@ -9,6 +9,8 @@ from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+from app.models.BankUser import BankUser
+from app.models.ShopUser import ShopUser
 from app.models.base import db
 from app.utils.Logger import WebLogger
 
@@ -32,6 +34,17 @@ def create_app():
 
     # 初始化JWTManager
     jwt = JWTManager(app)
+
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        identity = jwt_data["sub"]
+        user_type = jwt_data.get("user_type")
+        if user_type == 'bank':
+            return BankUser.query.get(identity)
+        elif user_type == 'shop':
+            return ShopUser.query.get(identity)
+        else:
+            return None
 
     register_blueprint(app)
 

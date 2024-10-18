@@ -9,14 +9,17 @@ from . import web
 from .. import logger
 from ..forms.auth import EmailForm, LoginForm
 from ..libs.email import send_mail
+from ..models.BankUser import BankUser
+from ..models.ShopUser import ShopUser
 from ..models.User import User
+from ..models.base import db
 from ..viewmodels.auth import do_register_form
 
 
-@web.route("/register", methods=['POST'])
-def register():
+@web.route("/bank/register", methods=['POST'])
+def bank_register():
     """
-        用户注册接口
+        银行用户注册接口
         ---
         parameters:
           - name: data
@@ -49,15 +52,34 @@ def register():
             description: 用户已存在
         """
     data = request.get_json()
+    nickname = data.get('nickname')
+    email = data.get('email')
+    password = data.get('password')
+    payPassword = data.get('payPassword')
 
-    result = do_register_form(data)
-    return result, 201
+    if not all([nickname, email, password, payPassword]):
+        return jsonify({'msg': '所有字段都是必需的'}), 400
+
+    existing_user = BankUser.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({'msg': '该邮箱已被注册'}), 400
+
+    user = BankUser(
+        nickname=nickname,
+        email=email,
+        password=password,
+        payPassword=payPassword
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({'msg': '银行用户注册成功'}), 201
 
 
-@web.route('/login', methods=['POST'])
-def login():
+@web.route('/bank/login', methods=['POST'])
+def bank_login():
     """
-    用户登录接口
+    银行用户登录接口
     ---
     parameters:
       - name: data
@@ -89,28 +111,23 @@ def login():
         description: 密码错误
     """
     data = request.get_json()
-    form = LoginForm(data=data)
-
-    if not form.validate():
-        return jsonify({"msg": form.errors}), 400
-
-    email = form.email.data
-    password = form.password.data
-    user_type = form.user_type.data
+    email = data.get('email')
+    password = data.get('password')
     remember = data.get('remember', False)
 
-    # 查找用户，包含 user_type
-    user = User.query.filter_by(email=email, user_type=user_type).first()
+    if not email or not password:
+        return jsonify({"msg": "邮箱和密码是必需的"}), 400
+
+    user = BankUser.query.filter_by(email=email).first()
     if user is None:
-        return jsonify({"msg": "用户不存在或用户类型不匹配"}), 404
+        return jsonify({"msg": "用户不存在"}), 404
 
     if not user.verify_password(password):
-        logger.info(f"用户{user.nickname}密码输入错误")
+        logger.info(f"银行用户{user.nickname}密码输入错误")
         return jsonify({"msg": "密码不正确"}), 401
 
     access_token = user.generate_jwt(user, remember)
-    logger.info(f"用户{user.nickname}登录成功")
-
+    logger.info(f"银行用户{user.nickname}登录成功")
     response = jsonify({"msg": "登录成功", "access_token": access_token})
     response.set_cookie(
         'access_token',
@@ -120,8 +137,7 @@ def login():
         samesite='Lax',
         max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24
     )
-
-    return response, 201
+    return response, 200
 
 
 # 发送重置密码请求
@@ -226,3 +242,59 @@ def logout():
         """
     logout_user()
     return jsonify({"msg": "退出登录成功"}), 201
+
+
+@web.route("/register", methods=['POST'])
+def register():
+    data = request.get_json()
+    nickname = data.get('nickname')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not all([nickname, email, password]):
+        return jsonify({'msg': '所有字段都是必需的'}), 400
+
+    existing_user = ShopUser.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({'msg': '该邮箱已被注册'}), 400
+
+    user = ShopUser(
+        nickname=nickname,
+        email=email,
+        password=password
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({'msg': '注册成功'}), 201
+
+@web.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    remember = data.get('remember', False)
+
+    if not email or not password:
+        return jsonify({"msg": "邮箱和密码是必需的"}), 400
+
+    user = ShopUser.query.filter_by(email=email).first()
+    if user is None:
+        return jsonify({"msg": "用户不存在"}), 404
+
+    if not user.verify_password(password):
+        logger.info(f"用户{user.nickname}密码输入错误")
+        return jsonify({"msg": "密码不正确"}), 401
+
+    access_token = user.generate_jwt(user, remember)
+    logger.info(f"用户{user.nickname}登录成功")
+    response = jsonify({"msg": "登录成功", "access_token": access_token})
+    response.set_cookie(
+        'access_token',
+        access_token,
+        httponly=True,
+        secure=True,
+        samesite='Lax',
+        max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24
+    )
+    return response, 200

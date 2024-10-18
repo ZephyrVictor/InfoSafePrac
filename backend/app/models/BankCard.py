@@ -1,34 +1,32 @@
-# encoding=utf-8
-__author__ = 'Zephyr369'
+# app/models/BankCard.py
 
-import random
-from datetime import datetime, timedelta
-
-from sqlalchemy import Column, Integer, ForeignKey, String, Float, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Boolean, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime, timedelta
+import random
 
 from app.models.base import Base, db
+from app.models.BankUser import BankUser
 
 
 class BankCard(Base):
     __tablename__ = 'bank_card'
 
     CardId = Column(Integer, primary_key=True)
-    card_number = Column(String(19), unique=True, nullable=False) # 中国的银行卡号都是19位
-    user_id = Column(Integer, ForeignKey('user.UserId'), nullable=False)
+    card_number = Column(String(19), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
     balance = Column(Float, default=0.0)
     is_active = Column(Boolean, default=False)
     captcha = Column(String(6), nullable=True)
     captcha_expiry = Column(DateTime, nullable=True)
 
-    user = relationship('User', backref='bank_cards')
+    user = relationship('BankUser', backref='bank_cards')
 
     def __init__(self, **kwargs):
         super(BankCard, self).__init__(**kwargs)
         if not self.card_number:
             self.card_number = self.generate_card_number()
 
-    # 生成银行卡号
     @staticmethod
     def generate_card_number():
         return ''.join([str(random.randint(0, 9)) for _ in range(19)])
