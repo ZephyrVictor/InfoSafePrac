@@ -16,6 +16,7 @@ from ..models.base import db
 
 auth_bp = Blueprint('auth', __name__)
 
+
 @auth_bp.route("/bank/register", methods=['POST'])
 def bank_register():
     """
@@ -178,145 +179,286 @@ def bank_login():
     )
     return response, 200
 
-# TODO: 修改一下修改密码的逻辑
-# @auth_bp.route("/reset/password", methods=['POST'])
-# def forget_password_request():
-#     """
-#     发送重置密码请求
-#     ---
-#     tags:
-#       - Auth
-#     parameters:
-#       - name: body
-#         in: body
-#         required: true
-#         schema:
-#           type: object
-#           required:
-#             - email
-#           properties:
-#             email:
-#               type: string
-#               description: 用户的邮箱地址
-#               example: user@example.com
-#     responses:
-#       200:
-#         description: 重置密码邮件已发送，请查收
-#         schema:
-#           type: object
-#           properties:
-#             msg:
-#               type: string
-#               example: 重置密码邮件已发送，请查收
-#       400:
-#         description: 输入错误或用户不存在
-#         schema:
-#           type: object
-#           properties:
-#             msg:
-#               type: string
-#               example: 请输入有效的邮箱地址 或 用户不存在
-#     """
-#     data = request.get_json()
-#     email = data.get('email')
-#
-#     if not email:
-#         return jsonify({"msg": "请输入有效的邮箱地址"}), 400
-#
-#     user = User.query.filter_by(email=email).first()
-#     if user:
-#         token = user.generate_token()
-#         send_mail(email, "重置您的密码", 'email/reset_password.html', user=user, token=token)
-#         return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
-#     return jsonify({"msg": "用户不存在"}), 400
-#
-#
-# @auth_bp.route("/reset/password/<token>", methods=['POST'])
-# def forget_password(token):
-#     """
-#     重置密码接口
-#     ---
-#     tags:
-#       - Auth
-#     parameters:
-#       - name: token
-#         in: path
-#         type: string
-#         required: true
-#         description: 重置密码的令牌
-#       - name: body
-#         in: body
-#         required: true
-#         schema:
-#           type: object
-#           required:
-#             - first_password
-#             - second_password
-#           properties:
-#             first_password:
-#               type: string
-#               description: 新密码
-#               example: newpassword123
-#             second_password:
-#               type: string
-#               description: 确认新密码
-#               example: newpassword123
-#     responses:
-#       201:
-#         description: 密码重置成功
-#         schema:
-#           type: object
-#           properties:
-#             msg:
-#               type: string
-#               example: 密码重置成功
-#       400:
-#         description: 密码重置失败或输入错误
-#         schema:
-#           type: object
-#           properties:
-#             msg:
-#               type: string
-#               example: 密码重置失败 或 输入错误信息
-#       405:
-#         description: 无效的请求方法
-#         schema:
-#           type: object
-#           properties:
-#             msg:
-#               type: string
-#               example: 无效的请求方法
-#     """
-#     if request.method == 'POST':
-#         data = request.json
-#         first_password = data.get('first_password')
-#         second_password = data.get('second_password')
-#
-#         if not (6 <= len(first_password) <= 32):
-#             return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
-#
-#         if first_password != second_password:
-#             return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
-#
-#         try:
-#             payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-#             user = User.query.get(payload['UserId'])
-#             if user:
-#                 if user.verify_password(first_password):
-#                     return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
-#
-#                 if User.reset_password(user.UserId, first_password):
-#                     return jsonify({"msg": "密码重置成功"}), 201
-#                 else:
-#                     return jsonify({"msg": "密码重置失败"}), 400
-#             else:
-#                 return jsonify({"msg": "无效的用户"}), 400
-#         except jwt.ExpiredSignatureError:
-#             return jsonify({"msg": "令牌已过期"}), 400
-#         except jwt.InvalidTokenError:
-#             return jsonify({"msg": "无效的令牌"}), 400
-#
-#     return jsonify({"msg": "无效的请求方法"}), 405
+
+# TODO: 这段代码写的重用不咋地 应当封装一下最好
+@auth_bp.route("/bank/reset/password", methods=['POST'])
+def bank_forget_password_request():
+    """
+    发送重置密码请求
+    ---
+    tags:
+      - Bank Auth
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+              description: 用户的邮箱地址
+              example: user@example.com
+    responses:
+      200:
+        description: 重置密码邮件已发送，请查收
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 重置密码邮件已发送，请查收
+      400:
+        description: 输入错误或用户不存在
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 请输入有效的邮箱地址 或 用户不存在
+    """
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({"msg": "请输入有效的邮箱地址"}), 400
+
+    user = BankUser.query.filter_by(email=email).first()
+    if user:
+        token = user.generate_token()
+        send_mail(email, "重置您的密码", 'email/reset_password.html', user=user, token=token)
+        return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
+    return jsonify({"msg": "用户不存在"}), 400
+
+
+@auth_bp.route("/bank/reset/password/<token>", methods=['POST'])
+def bank_forget_password(token):
+    """
+    重置密码接口
+    ---
+    tags:
+      - Bank Auth
+    parameters:
+      - name: token
+        in: path
+        type: string
+        required: true
+        description: 重置密码的令牌
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - first_password
+            - second_password
+          properties:
+            first_password:
+              type: string
+              description: 新密码
+              example: newpassword123
+            second_password:
+              type: string
+              description: 确认新密码
+              example: newpassword123
+    responses:
+      201:
+        description: 密码重置成功
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 密码重置成功
+      400:
+        description: 密码重置失败或输入错误
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 密码重置失败 或 输入错误信息
+      405:
+        description: 无效的请求方法
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 无效的请求方法
+    """
+    if request.method == 'POST':
+        data = request.json
+        first_password = data.get('first_password')
+        second_password = data.get('second_password')
+
+        if not (6 <= len(first_password) <= 32):
+            return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
+
+        if first_password != second_password:
+            return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
+
+        try:
+            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            user = BankUser.query.get(payload['UserId'])
+            if user:
+                if user.verify_password(first_password):
+                    return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
+
+                if BankUser.reset_password(user.UserId, first_password):
+                    return jsonify({"msg": "密码重置成功"}), 201
+                else:
+                    return jsonify({"msg": "密码重置失败"}), 400
+            else:
+                return jsonify({"msg": "无效的用户"}), 400
+        except jwt.ExpiredSignatureError:
+            return jsonify({"msg": "令牌已过期"}), 400
+        except jwt.InvalidTokenError:
+            return jsonify({"msg": "无效的令牌"}), 400
+
+    return jsonify({"msg": "无效的请求方法"}), 405
+
+
+@auth_bp.route("/shop/reset/password/<token>", methods=['POST'])
+def shop_forget_password(token):
+    """
+    重置密码接口
+    ---
+    tags:
+      - Shop Auth
+    parameters:
+      - name: token
+        in: path
+        type: string
+        required: true
+        description: 重置密码的令牌
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - first_password
+            - second_password
+          properties:
+            first_password:
+              type: string
+              description: 新密码
+              example: newpassword123
+            second_password:
+              type: string
+              description: 确认新密码
+              example: newpassword123
+    responses:
+      201:
+        description: 密码重置成功
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 密码重置成功
+      400:
+        description: 密码重置失败或输入错误
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 密码重置失败 或 输入错误信息
+      405:
+        description: 无效的请求方法
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 无效的请求方法
+    """
+    if request.method == 'POST':
+        data = request.json
+        first_password = data.get('first_password')
+        second_password = data.get('second_password')
+
+        if not (6 <= len(first_password) <= 32):
+            return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
+
+        if first_password != second_password:
+            return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
+
+        try:
+            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            user = ShopUser.query.get(payload['UserId'])
+            if user:
+                if user.verify_password(first_password):
+                    return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
+
+                if ShopUser.reset_password(user.UserId, first_password):
+                    return jsonify({"msg": "密码重置成功"}), 201
+                else:
+                    return jsonify({"msg": "密码重置失败"}), 400
+            else:
+                return jsonify({"msg": "无效的用户"}), 400
+        except jwt.ExpiredSignatureError:
+            return jsonify({"msg": "令牌已过期"}), 400
+        except jwt.InvalidTokenError:
+            return jsonify({"msg": "无效的令牌"}), 400
+
+    return jsonify({"msg": "无效的请求方法"}), 405
+
+
+@auth_bp.route("/shop/reset/password", methods=['POST'])
+def shop_forget_password_request():
+    """
+    发送重置密码请求
+    ---
+    tags:
+      - Shop Auth
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+              description: 用户的邮箱地址
+              example: user@example.com
+    responses:
+      200:
+        description: 重置密码邮件已发送，请查收
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 重置密码邮件已发送，请查收
+      400:
+        description: 输入错误或用户不存在
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 请输入有效的邮箱地址 或 用户不存在
+    """
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({"msg": "请输入有效的邮箱地址"}), 400
+
+    user = ShopUser.query.filter_by(email=email).first()
+    if user:
+        token = user.generate_token()
+        send_mail(email, "重置您的密码", 'email/reset_password.html', user=user, token=token)
+        return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
+    return jsonify({"msg": "用户不存在"}), 400
 
 
 @auth_bp.route('/logout')
@@ -344,7 +486,7 @@ def logout():
 
 
 @auth_bp.route("/register", methods=['POST'])
-def register():
+def shop_register():
     """
     外卖平台用户注册接口
     ---
@@ -409,7 +551,7 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
-def login():
+def shop_login():
     """
     外卖平台用户登录接口
     ---
