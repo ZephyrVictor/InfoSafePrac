@@ -11,6 +11,7 @@ from app.models.BankUser import BankUser
 from app.models.ShopUser import ShopUser
 from app import db
 
+
 class CaptchaManager:
     def __init__(self, user):
         self.user = user

@@ -25,7 +25,17 @@ limiter = Limiter(
 
 def create_app():
     app = Flask(__name__)
-    swagger = Swagger(app)
+    # 要用来做jwt
+    swagger = Swagger(app, template={
+        "securityDefinitions": {
+            "Bearer": {
+                "type": "apiKey",
+                "name": "Authorization",
+                "in": "header",
+                "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+            }
+        }
+    })
 
     app.config.from_object('app.setting')
     app.config.from_object('app.secure')

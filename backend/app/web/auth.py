@@ -1,10 +1,12 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+import flasgger
 import jwt
+from flasgger import swag_from
 from flask import request, jsonify, current_app, Blueprint
 from flask_login import logout_user
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from .. import logger
 from ..forms.auth import EmailForm
@@ -12,8 +14,8 @@ from ..libs.captcha import CaptchaManager
 from ..libs.email import send_mail
 from ..models.BankUser import BankUser
 from ..models.ShopUser import ShopUser
-# from ..models.User import User
 from ..models.base import db
+from ..utils.verify_email import is_valid_email
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -67,6 +69,7 @@ def bank_register():
               type: string
               example: 所有字段都是必需的 或 该邮箱已被注册
     """
+    # 视图函数部分
     data = request.get_json()
     nickname = data.get('nickname')
     email = data.get('email')
@@ -75,6 +78,10 @@ def bank_register():
 
     if not all([nickname, email, password, payPassword]):
         return jsonify({'msg': '所有字段都是必需的'}), 400
+
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
 
     existing_user = BankUser.query.filter_by(email=email).first()
     if existing_user:
@@ -158,6 +165,9 @@ def bank_login():
 
     if not email or not password:
         return jsonify({"msg": "邮箱和密码是必需的"}), 400
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
 
     user = BankUser.query.filter_by(email=email).first()
     if user is None:
@@ -181,17 +191,18 @@ def bank_login():
     return response, 200
 
 
-# TODO: 这段代码写的重用不咋地 应当封装一下最好
-@auth_bp.route("/bank/reset/password", methods=['POST'])
+@auth_bp.route("/bank/reset/password", methods=['POST']) # 银行用户发送重置密码验证码请求接口文档
+@swag_from('../docs/bank_reset_password_request.yml')
 def bank_reset_password_request():
-    """
-    银行用户发送重置密码验证码请求
-    """
     data = request.get_json()
     email = data.get('email')
 
     if not email:
         return jsonify({"msg": "请输入有效的邮箱地址"}), 400
+
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
 
     user = BankUser.query.filter_by(email=email).first()
     if user:
@@ -203,10 +214,9 @@ def bank_reset_password_request():
 
 
 @auth_bp.route("/bank/reset/password", methods=['PUT'])
+@swag_from('../docs/bank_reset_password.yml')
 def bank_reset_password():
-    """
-    银行用户重置密码接口
-    """
+
     data = request.get_json()
     email = data.get('email')
     captcha = data.get('captcha')
@@ -215,6 +225,10 @@ def bank_reset_password():
 
     if not all([email, captcha, new_password, confirm_password]):
         return jsonify({"msg": "所有字段都是必需的"}), 400
+
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
 
     if new_password != confirm_password:
         return jsonify({"msg": "两次输入的密码不一致"}), 400
@@ -235,15 +249,18 @@ def bank_reset_password():
 
 
 @auth_bp.route("/shop/reset/password", methods=['POST'])
+@swag_from('../docs/shop_reset_password_request.yml')
 def shop_reset_password_request():
-    """
-    外卖平台用户发送重置密码验证码请求
-    """
+
     data = request.get_json()
     email = data.get('email')
 
     if not email:
         return jsonify({"msg": "请输入有效的邮箱地址"}), 400
+
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
 
     user = ShopUser.query.filter_by(email=email).first()
     if user:
@@ -255,10 +272,8 @@ def shop_reset_password_request():
 
 
 @auth_bp.route("/shop/reset/password", methods=['PUT'])
+@swag_from('../docs/shop_reset_password.yml')
 def shop_reset_password():
-    """
-    外卖平台用户重置密码接口
-    """
     data = request.get_json()
     email = data.get('email')
     captcha = data.get('captcha')
@@ -267,6 +282,10 @@ def shop_reset_password():
 
     if not all([email, captcha, new_password, confirm_password]):
         return jsonify({"msg": "所有字段都是必需的"}), 400
+
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
 
     if new_password != confirm_password:
         return jsonify({"msg": "两次输入的密码不一致"}), 400
@@ -286,7 +305,7 @@ def shop_reset_password():
         return jsonify({"msg": "验证码错误或已过期"}), 400
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/bank/logout')
 @jwt_required()
 def logout():
     """
@@ -307,6 +326,7 @@ def logout():
               example: 退出登录成功
     """
     logout_user()
+    logger.info(f"用户退出登录")
     return jsonify({"msg": "退出登录成功"}), 201
 
 
@@ -363,6 +383,10 @@ def shop_register():
     if not all([nickname, email, password]):
         return jsonify({'msg': '所有字段都是必需的'}), 400
 
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
+
     existing_user = ShopUser.query.filter_by(email=email).first()
     if existing_user:
         return jsonify({'msg': '该邮箱已被注册'}), 400
@@ -371,7 +395,7 @@ def shop_register():
     shop_user.set_attrs(data)
     db.session.add(shop_user)
     db.session.commit()
-
+    logger.info(f"用户{shop_user.nickname}注册成功")
     return jsonify({'msg': '注册成功'}), 201
 
 
@@ -445,6 +469,10 @@ def shop_login():
 
     if not email or not password:
         return jsonify({"msg": "邮箱和密码是必需的"}), 400
+
+    # 验证邮箱格式是否有效
+    if not is_valid_email(email):
+        return jsonify({'msg': '无效的邮箱格式'}), 400
 
     user = ShopUser.query.filter_by(email=email).first()
     if user is None:

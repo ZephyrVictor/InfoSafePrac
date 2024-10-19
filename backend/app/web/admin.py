@@ -1,16 +1,21 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+from flasgger import swag_from
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.models.BankUser import BankUser
+from app.models.ShopUser import ShopUser
 # from app.models.User import User
 from app.models.Store import Store
 from app import db
 
 admin_bp = Blueprint('admin', __name__)
 
-@admin_bp.route("/examine", methods=['POST'])
+
+# 管理员审核用户，只有审核过了的才能开卡
+@admin_bp.route("/bank/examine", methods=['POST'])
 @jwt_required()
 def approve_user():
     """
@@ -58,14 +63,14 @@ def approve_user():
               example: 用户不存在
     """
     admin_id = get_jwt_identity()
-    admin_user = User.query.get(admin_id)
+    admin_user = BankUser.query.get(admin_id)
     if not admin_user.isAdmin:
         return jsonify({'msg': '无权限'}), 403
 
     data = request.get_json()
     user_id = data.get('user_id')
 
-    user = User.query.get(user_id)
+    user = BankUser.query.get(user_id)
     if not user:
         return jsonify({'msg': '用户不存在'}), 404
 
@@ -74,7 +79,129 @@ def approve_user():
     return jsonify({'msg': '用户审核通过'}), 200
 
 
-@admin_bp.route("/approve_store", methods=['POST'])
+@admin_bp.route("/bank/list_user", methods=['GET'])
+# @swag_from('../docs/bank_list_user.yml')
+@jwt_required()
+def bank_list_user():
+    """
+    tags:
+      - Admin
+    security:
+      - Bearer: []  # 这里定义了需要 Bearer Token 的安全验证
+    responses:
+      200:
+        description: 成功返回银行用户列表
+        schema:
+          type: object
+          properties:
+            users:
+              type: array
+              items:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                    example: 1
+                  email:
+                    type: string
+                    example: user@example.com
+                  isExamined:
+                    type: boolean
+                    example: true
+                  isAdmin:
+                    type: boolean
+                    example: false
+      403:
+        description: 无权限
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 无权限
+        :return:
+    """
+    admin_id = get_jwt_identity()
+    admin_user = BankUser.query.get(admin_id)
+    if not admin_user.isAdmin:
+        return jsonify({'msg': '无权限'}), 403
+
+    users = BankUser.query.all()
+    user_list = []
+    for user in users:
+        user_list.append({
+            'user_id': user.UserId,
+            'email': user.email,
+            'isExamined': user.isExamined,
+            'isAdmin': user.isAdmin
+        })
+
+    return jsonify({'users': user_list}), 200
+
+
+@admin_bp.route("/shop/list_user", methods=['GET'])
+@jwt_required()
+def shop_list_user():
+    """
+    列出所有用户
+    ---
+    tags:
+      - Admin
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: 成功返回外卖商户用户列表
+        schema:
+          type: object
+          properties:
+            users:
+              type: array
+              items:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                    example: 1
+                  email:
+                    type: string
+                    example: user@example.com
+                  isExamined:
+                    type: boolean
+                    example: true
+                  isAdmin:
+                    type: boolean
+                    example: false
+      403:
+        description: 无权限
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: 无权限
+    """
+    admin_id = get_jwt_identity()
+    admin_user = ShopUser.query.get(admin_id)
+    if not admin_user:
+        return jsonify({"msg":"没有管理员用户"}), 403
+    if not admin_user.isAdmin:
+        return jsonify({'msg': '无权限'}), 403
+
+    users = ShopUser.query.all()
+    user_list = []
+    for user in users:
+        user_list.append({
+            'user_id': user.UserId,
+            'email': user.email,
+            'Stores': user.stores,
+            'isAdmin': user.isAdmin
+        })
+
+    return jsonify({'users': user_list}), 200
+
+
+@admin_bp.route("/shop/approve_store", methods=['POST'])
 @jwt_required()
 def approve_store():
     """
@@ -122,7 +249,7 @@ def approve_store():
               example: 店铺不存在
     """
     admin_id = get_jwt_identity()
-    admin_user = User.query.get(admin_id)
+    admin_user = ShopUser.query.get(admin_id)
     if not admin_user.isAdmin:
         return jsonify({'msg': '无权限'}), 403
 
@@ -137,63 +264,3 @@ def approve_store():
     store.is_open = True
     db.session.commit()
     return jsonify({'msg': '店铺审核通过，已开业'}), 200
-
-
-@admin_bp.route("/list_user", methods=['GET'])
-@jwt_required()
-def list_user():
-    """
-    列出所有用户
-    ---
-    tags:
-      - Admin
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: 成功返回用户列表
-        schema:
-          type: object
-          properties:
-            users:
-              type: array
-              items:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    example: 1
-                  email:
-                    type: string
-                    example: user@example.com
-                  isExamined:
-                    type: boolean
-                    example: true
-                  isAdmin:
-                    type: boolean
-                    example: false
-      403:
-        description: 无权限
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 无权限
-    """
-    admin_id = get_jwt_identity()
-    admin_user = User.query.get(admin_id)
-    if not admin_user.isAdmin:
-        return jsonify({'msg': '无权限'}), 403
-
-    users = User.query.all()
-    user_list = []
-    for user in users:
-        user_list.append({
-            'user_id': user.UserId,
-            'email': user.email,
-            'isExamined': user.isExamined,
-            'isAdmin': user.isAdmin
-        })
-
-    return jsonify({'users': user_list}), 200
