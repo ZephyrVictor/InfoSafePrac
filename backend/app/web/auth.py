@@ -8,6 +8,7 @@ from flask_jwt_extended import jwt_required
 
 from .. import logger
 from ..forms.auth import EmailForm
+from ..libs.captcha import CaptchaManager
 from ..libs.email import send_mail
 from ..models.BankUser import BankUser
 from ..models.ShopUser import ShopUser
@@ -182,42 +183,9 @@ def bank_login():
 
 # TODO: 这段代码写的重用不咋地 应当封装一下最好
 @auth_bp.route("/bank/reset/password", methods=['POST'])
-def bank_forget_password_request():
+def bank_reset_password_request():
     """
-    发送重置密码请求
-    ---
-    tags:
-      - Bank Auth
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          required:
-            - email
-          properties:
-            email:
-              type: string
-              description: 用户的邮箱地址
-              example: user@example.com
-    responses:
-      200:
-        description: 重置密码邮件已发送，请查收
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 重置密码邮件已发送，请查收
-      400:
-        description: 输入错误或用户不存在
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 请输入有效的邮箱地址 或 用户不存在
+    银行用户发送重置密码验证码请求
     """
     data = request.get_json()
     email = data.get('email')
@@ -227,225 +195,49 @@ def bank_forget_password_request():
 
     user = BankUser.query.filter_by(email=email).first()
     if user:
-        token = user.generate_token()
-        send_mail(email, "重置您的密码", 'email/reset_password.html', user=user, token=token)
-        return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
+        captcha_manager = CaptchaManager(user)
+        captcha_manager.generate_captcha()
+        captcha_manager.send_captcha_email("重置您的密码验证码", 'email/reset_password.html')
+        return jsonify({"msg": "重置密码验证码已发送，请查收"}), 200
     return jsonify({"msg": "用户不存在"}), 400
 
 
-@auth_bp.route("/bank/reset/password/<token>", methods=['POST'])
-def bank_forget_password(token):
+@auth_bp.route("/bank/reset/password", methods=['PUT'])
+def bank_reset_password():
     """
-    重置密码接口
-    ---
-    tags:
-      - Bank Auth
-    parameters:
-      - name: token
-        in: path
-        type: string
-        required: true
-        description: 重置密码的令牌
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          required:
-            - first_password
-            - second_password
-          properties:
-            first_password:
-              type: string
-              description: 新密码
-              example: newpassword123
-            second_password:
-              type: string
-              description: 确认新密码
-              example: newpassword123
-    responses:
-      201:
-        description: 密码重置成功
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 密码重置成功
-      400:
-        description: 密码重置失败或输入错误
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 密码重置失败 或 输入错误信息
-      405:
-        description: 无效的请求方法
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 无效的请求方法
+    银行用户重置密码接口
     """
-    if request.method == 'POST':
-        data = request.json
-        first_password = data.get('first_password')
-        second_password = data.get('second_password')
+    data = request.get_json()
+    email = data.get('email')
+    captcha = data.get('captcha')
+    new_password = data.get('new_password')
+    confirm_password = data.get('confirm_password')
 
-        if not (6 <= len(first_password) <= 32):
-            return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
+    if not all([email, captcha, new_password, confirm_password]):
+        return jsonify({"msg": "所有字段都是必需的"}), 400
 
-        if first_password != second_password:
-            return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
+    if new_password != confirm_password:
+        return jsonify({"msg": "两次输入的密码不一致"}), 400
 
-        try:
-            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-            user = BankUser.query.get(payload['UserId'])
-            if user:
-                if user.verify_password(first_password):
-                    return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
+    user = BankUser.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"msg": "用户不存在"}), 400
 
-                if BankUser.reset_password(user.UserId, first_password):
-                    return jsonify({"msg": "密码重置成功"}), 201
-                else:
-                    return jsonify({"msg": "密码重置失败"}), 400
-            else:
-                return jsonify({"msg": "无效的用户"}), 400
-        except jwt.ExpiredSignatureError:
-            return jsonify({"msg": "令牌已过期"}), 400
-        except jwt.InvalidTokenError:
-            return jsonify({"msg": "无效的令牌"}), 400
-
-    return jsonify({"msg": "无效的请求方法"}), 405
-
-
-@auth_bp.route("/shop/reset/password/<token>", methods=['POST'])
-def shop_forget_password(token):
-    """
-    重置密码接口
-    ---
-    tags:
-      - Shop Auth
-    parameters:
-      - name: token
-        in: path
-        type: string
-        required: true
-        description: 重置密码的令牌
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          required:
-            - first_password
-            - second_password
-          properties:
-            first_password:
-              type: string
-              description: 新密码
-              example: newpassword123
-            second_password:
-              type: string
-              description: 确认新密码
-              example: newpassword123
-    responses:
-      201:
-        description: 密码重置成功
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 密码重置成功
-      400:
-        description: 密码重置失败或输入错误
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 密码重置失败 或 输入错误信息
-      405:
-        description: 无效的请求方法
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 无效的请求方法
-    """
-    if request.method == 'POST':
-        data = request.json
-        first_password = data.get('first_password')
-        second_password = data.get('second_password')
-
-        if not (6 <= len(first_password) <= 32):
-            return jsonify({"errors": {"first_password": ["密码长度至少需要6到32个字符之间"]}}), 400
-
-        if first_password != second_password:
-            return jsonify({"errors": {"second_password": ["两次输入的密码不同"]}}), 400
-
-        try:
-            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-            user = ShopUser.query.get(payload['UserId'])
-            if user:
-                if user.verify_password(first_password):
-                    return jsonify({"errors": {"first_password": ["新密码不能与原密码相同"]}}), 400
-
-                if ShopUser.reset_password(user.UserId, first_password):
-                    return jsonify({"msg": "密码重置成功"}), 201
-                else:
-                    return jsonify({"msg": "密码重置失败"}), 400
-            else:
-                return jsonify({"msg": "无效的用户"}), 400
-        except jwt.ExpiredSignatureError:
-            return jsonify({"msg": "令牌已过期"}), 400
-        except jwt.InvalidTokenError:
-            return jsonify({"msg": "无效的令牌"}), 400
-
-    return jsonify({"msg": "无效的请求方法"}), 405
+    captcha_manager = CaptchaManager(user)
+    if captcha_manager.verify_captcha(captcha):
+        if user.verify_password(new_password):
+            return jsonify({"msg": "新密码不能与原密码相同"}), 400
+        user.password = new_password
+        db.session.commit()
+        return jsonify({"msg": "密码重置成功"}), 200
+    else:
+        return jsonify({"msg": "验证码错误或已过期"}), 400
 
 
 @auth_bp.route("/shop/reset/password", methods=['POST'])
-def shop_forget_password_request():
+def shop_reset_password_request():
     """
-    发送重置密码请求
-    ---
-    tags:
-      - Shop Auth
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          required:
-            - email
-          properties:
-            email:
-              type: string
-              description: 用户的邮箱地址
-              example: user@example.com
-    responses:
-      200:
-        description: 重置密码邮件已发送，请查收
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 重置密码邮件已发送，请查收
-      400:
-        description: 输入错误或用户不存在
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 请输入有效的邮箱地址 或 用户不存在
+    外卖平台用户发送重置密码验证码请求
     """
     data = request.get_json()
     email = data.get('email')
@@ -455,10 +247,43 @@ def shop_forget_password_request():
 
     user = ShopUser.query.filter_by(email=email).first()
     if user:
-        token = user.generate_token()
-        send_mail(email, "重置您的密码", 'email/reset_password.html', user=user, token=token)
-        return jsonify({"msg": "重置密码邮件已发送，请查收"}), 200
+        captcha_manager = CaptchaManager(user)
+        captcha_manager.generate_captcha()
+        captcha_manager.send_captcha_email("重置您的密码验证码", 'email/reset_password.html')
+        return jsonify({"msg": "重置密码验证码已发送，请查收"}), 200
     return jsonify({"msg": "用户不存在"}), 400
+
+
+@auth_bp.route("/shop/reset/password", methods=['PUT'])
+def shop_reset_password():
+    """
+    外卖平台用户重置密码接口
+    """
+    data = request.get_json()
+    email = data.get('email')
+    captcha = data.get('captcha')
+    new_password = data.get('new_password')
+    confirm_password = data.get('confirm_password')
+
+    if not all([email, captcha, new_password, confirm_password]):
+        return jsonify({"msg": "所有字段都是必需的"}), 400
+
+    if new_password != confirm_password:
+        return jsonify({"msg": "两次输入的密码不一致"}), 400
+
+    user = ShopUser.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"msg": "用户不存在"}), 400
+
+    captcha_manager = CaptchaManager(user)
+    if captcha_manager.verify_captcha(captcha):
+        if user.verify_password(new_password):
+            return jsonify({"msg": "新密码不能与原密码相同"}), 400
+        user.password = new_password
+        db.session.commit()
+        return jsonify({"msg": "密码重置成功"}), 200
+    else:
+        return jsonify({"msg": "验证码错误或已过期"}), 400
 
 
 @auth_bp.route('/logout')

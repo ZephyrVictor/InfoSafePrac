@@ -18,7 +18,7 @@ class BankCard(Base):
     balance = Column(Float, default=0.0)
     is_active = Column(Boolean, default=False)
     captcha = Column(String(6), nullable=True)
-    captcha_expiry = Column(DateTime, nullable=True)
+
 
     user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
     user = relationship('BankUser', back_populates='bank_cards')

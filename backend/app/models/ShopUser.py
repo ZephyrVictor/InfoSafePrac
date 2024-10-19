@@ -11,7 +11,7 @@ import jwt
 from flask import current_app
 from flask_jwt_extended import create_access_token, decode_token
 from flask_login import UserMixin
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import login_manager, logger
@@ -28,7 +28,7 @@ class ShopUser(UserMixin, Base):
     isAdmin = Column(Boolean, default=False)  # 是否为管理员
     captcha = Column(String(6), nullable=True)  # 验证码
     bank_user_id = Column(Integer, nullable=True)  # 关联的银行用户ID
-
+    captcha_expiry = Column(DateTime, nullable=True)  # 验证码过期时间
     stores = db.relationship('Store', back_populates='owner', lazy='dynamic')
 
     @property

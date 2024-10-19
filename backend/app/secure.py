@@ -12,3 +12,5 @@ MAIL_USE_TSL = False
 MAIL_USERNAME = '1010593279@qq.com'
 MAIL_PASSWORD = 'auzizwpkwaixbbia'
 MAIL_SUBJECT_PREFIX = '<线上虚拟交易平台>'
+
+CAPTCHA_EXPIRATION = 60   # 验证码过期时间

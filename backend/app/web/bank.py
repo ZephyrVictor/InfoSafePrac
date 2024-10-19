@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_req
 from app.models.BankCard import BankCard
 from app.libs.email import send_mail
 from app import db
+from ..libs.captcha import CaptchaManager
 from ..models.BankUser import BankUser
 
 bank_bp = Blueprint('bank', __name__)
@@ -61,12 +62,12 @@ def apply_bank_card():
         return jsonify({'msg': '用户未经过审核，无法绑定银行卡'}), 403
 
     new_card = BankCard(user_id=user.UserId)
-    new_card.set_captcha()
-
-    send_mail(user.email, '绑定银行卡验证码', 'email/bind_bank_card.html', user=user, captcha=new_card.captcha)
-
     db.session.add(new_card)
     db.session.commit()
+
+    captcha_manager = CaptchaManager(user)
+    captcha_manager.generate_captcha()
+    captcha_manager.send_captcha_email('绑定银行卡验证码', 'email/bind_bank_card.html')
 
     return jsonify({'msg': '验证码已发送到您的邮箱，请查收', 'card_id': new_card.CardId}), 200
 
@@ -131,16 +132,19 @@ def confirm_bank_card():
     card_id = data.get('card_id')
     captcha = data.get('captcha')
 
+    user = BankUser.query.get(user_id)
+    captcha_manager = CaptchaManager(user)
+
+    if not captcha_manager.verify_captcha(captcha):
+        return jsonify({'msg': '验证码错误或已过期'}), 400
+
     bank_card = BankCard.query.filter_by(CardId=card_id, user_id=user_id).first()
     if not bank_card:
         return jsonify({'msg': '银行卡不存在'}), 404
 
-    if bank_card.verify_captcha(captcha):
-        bank_card.is_active = True
-        db.session.commit()
-        return jsonify({'msg': '银行卡绑定成功'}), 200
-    else:
-        return jsonify({'msg': '验证码错误或已过期'}), 400
+    bank_card.is_active = True
+    db.session.commit()
+    return jsonify({'msg': '银行卡绑定成功'}), 200
 
 
 @bank_bp.route('/deposit', methods=['POST'])

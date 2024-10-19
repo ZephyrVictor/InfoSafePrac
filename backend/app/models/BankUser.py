@@ -10,7 +10,7 @@ from datetime import timedelta
 import jwt
 from flask import current_app
 from flask_jwt_extended import create_access_token, decode_token
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import logger
@@ -29,7 +29,7 @@ class BankUser(Base):
     isAdmin = Column(Boolean, default=False)  # 是否为管理员
     IdCardNumber = Column(String(18), nullable=True)  # 身份证号
     captcha = Column(String(6), nullable=True)  # 验证码
-
+    captcha_expiry = Column(DateTime, nullable=True) # 验证码过期时间
     bank_cards = db.relationship('BankCard', back_populates='user', lazy='dynamic')
 
     @property
