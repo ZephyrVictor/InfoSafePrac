@@ -3,9 +3,9 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
-import datetime
+# import datetime
 import random
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import jwt
 from flask import current_app
@@ -28,9 +28,20 @@ class BankUser(Base):
     _payPassword = Column('pay_password', String(255), nullable=False)  # 支付密码
     isAdmin = Column(Boolean, default=False)  # 是否为管理员
     IdCardNumber = Column(String(18), nullable=True)  # 身份证号
-    captcha = Column(String(6), nullable=True)  # 验证码
+    _captcha = Column("captcha",String(255), nullable=True)  # 验证码
     captcha_expiry = Column(DateTime, nullable=True) # 验证码过期时间
     bank_cards = db.relationship('BankCard', back_populates='user', lazy='dynamic')
+
+    @property
+    def captcha(self):
+        return self._captcha
+
+    @captcha.setter
+    def captcha(self, raw):
+        if raw:
+            self._captcha = generate_password_hash(raw)
+        else:
+            self._captcha = None
 
     @property
     def password(self):
@@ -60,12 +71,20 @@ class BankUser(Base):
         db.session.commit()
 
     def verify_captcha(self, input_captcha):
-        """验证验证码"""
-        if self.captcha == input_captcha:
-            self.captcha = None
-            db.session.commit()
-            return True
+        """验证用户输入的验证码"""
+        if self._captcha and check_password_hash(self._captcha, input_captcha):
+            if datetime.utcnow() <= self.captcha_expiry:
+                self.captcha = None
+                self.captcha_expiry = None
+                db.session.commit()
+                return True
         return False
+
+    def generate_captcha(self, captcha_value, expiry_seconds=60):
+        """生成哈希化验证码并设置过期时间"""
+        self.captcha = captcha_value  # 触发setter进行哈希化
+        self.captcha_expiry = datetime.utcnow() + timedelta(seconds=expiry_seconds)
+        db.session.commit()
 
     @staticmethod
     def reset_password(user_id, new_password):

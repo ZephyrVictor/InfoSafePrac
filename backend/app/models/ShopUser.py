@@ -3,9 +3,8 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
-import datetime
 import random
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import jwt
 from flask import current_app
@@ -17,6 +16,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import login_manager, logger
 from app.models.base import Base, db
 
+
 # TODO: 将ShopUser继承于AbstractUser
 class ShopUser(UserMixin, Base):
     __tablename__ = 'shop_user'
@@ -26,10 +26,23 @@ class ShopUser(UserMixin, Base):
     email = Column(String(50), unique=True, nullable=False)
     _password = Column('password', String(255), nullable=False)
     isAdmin = Column(Boolean, default=False)  # 是否为管理员
-    captcha = Column(String(6), nullable=True)  # 验证码
+    _captcha = Column("captcha", String(255), nullable=True)  # 验证码
     bank_user_id = Column(Integer, nullable=True)  # 关联的银行用户ID
     captcha_expiry = Column(DateTime, nullable=True)  # 验证码过期时间
     stores = db.relationship('Store', back_populates='owner', lazy='dynamic')
+
+    # 验证码还是用哈希来保存好了
+    @property
+    def captcha(self):
+        return self._captcha
+
+    @captcha.setter
+    def captcha(self, raw):
+        # 避免生成哈希时传递None
+        if raw:
+            self._captcha = generate_password_hash(raw)
+        else:
+            self._captcha = None
 
     @property
     def password(self):
@@ -47,13 +60,24 @@ class ShopUser(UserMixin, Base):
         self.captcha = ''.join([str(random.randint(0, 9)) for _ in range(6)])
         db.session.commit()
 
+    # 返回验证码是否正确
     def verify_captcha(self, input_captcha):
-        """验证验证码"""
-        if self.captcha == input_captcha:
-            self.captcha = None
-            db.session.commit()
-            return True
+        """验证用户输入的验证码"""
+        # 避免None值传递给check_password_hash
+        if self._captcha and check_password_hash(self._captcha, input_captcha):
+            if datetime.utcnow() <= self.captcha_expiry:
+                # 验证成功，清除验证码
+                self.captcha = None
+                self.captcha_expiry = None
+                db.session.commit()
+                return True
         return False
+
+    def generate_captcha(self, captcha_value, expiry_seconds=60):
+        """生成哈希化验证码并设置过期时间"""
+        self.captcha = captcha_value  # 触发setter进行哈希化
+        self.captcha_expiry = datetime.utcnow() + timedelta(seconds=expiry_seconds)
+        db.session.commit()
 
     @staticmethod
     def reset_password(user_id, new_password):
@@ -72,7 +96,7 @@ class ShopUser(UserMixin, Base):
         return create_access_token(
             identity=user.UserId,
             expires_delta=expires,
-            additional_claims={'user_type': 'shop'} # 在jwt中存一个用户类型
+            additional_claims={'user_type': 'shop'}  # 在jwt中存一个用户类型
         )
 
     def generate_token(self, expiration=600):

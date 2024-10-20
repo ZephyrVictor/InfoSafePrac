@@ -2,6 +2,9 @@
 __author__ = 'Zephyr369'
 
 import logging
+
+
+# 日志管理器 分为基本的级别 只有在WARNING级别以上的才会被记录
 class WebLogger:
     def __init__(self, name='WebLogger', log_file='app.log'):
         self.logger = logging.getLogger(name)
@@ -9,11 +12,11 @@ class WebLogger:
 
         # 创建文件处理器
         file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging.WARNING)
 
         # 创建控制台处理器
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.DEBUG)
 
         # 创建日志格式
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

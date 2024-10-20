@@ -5,6 +5,8 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 import random
 
+from werkzeug.security import generate_password_hash
+
 from app.models.base import Base, db
 from app.models.BankUser import BankUser
 
@@ -17,7 +19,7 @@ class BankCard(Base):
     # user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
     balance = Column(Float, default=0.0)
     is_active = Column(Boolean, default=False)
-    captcha = Column(String(6), nullable=True)
+    _captcha = Column("captcha",String(255), nullable=True)
 
 
     user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
@@ -27,6 +29,14 @@ class BankCard(Base):
         super(BankCard, self).__init__(**kwargs)
         if not self.card_number:
             self.card_number = self.generate_card_number()
+
+    @property
+    def captcha(self):
+        return self._captcha
+
+    @captcha.setter
+    def captcha(self, value):
+        self._captcha = generate_password_hash(value)
 
     @staticmethod
     def generate_card_number():

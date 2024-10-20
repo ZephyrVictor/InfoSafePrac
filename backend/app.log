@@ -8,3 +8,5 @@
 2024-10-20 00:07:04,915 - WebLogger - INFO - 银行用户Zephyr密码输入错误
 2024-10-20 00:07:11,455 - WebLogger - INFO - 银行用户Zephyr登录成功
 2024-10-20 00:13:08,816 - WebLogger - INFO - 银行用户admin登录成功
+2024-10-20 08:59:12,389 - WebLogger - INFO - 银行用户Zephyr登录成功
+2024-10-20 09:24:06,511 - WebLogger - DEBUG - 发送了一个验证码988777

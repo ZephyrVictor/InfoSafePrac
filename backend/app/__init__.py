@@ -8,7 +8,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-
+from flask_migrate import Migrate
 
 from app.models.base import db
 from app.utils.Logger import WebLogger
@@ -22,20 +22,33 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"]
 )
 
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Your API",
+        "description": "API for your application",
+        "version": "1.0.0"
+    },
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+        }
+    },
+    "security": [
+        {
+            "Bearer": []
+        }
+    ]
+}
+
 
 def create_app():
     app = Flask(__name__)
     # 要用来做jwt
-    swagger = Swagger(app, template={
-        "securityDefinitions": {
-            "Bearer": {
-                "type": "apiKey",
-                "name": "Authorization",
-                "in": "header",
-                "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
-            }
-        }
-    })
+    swagger = Swagger(app, template=swagger_template)
 
     app.config.from_object('app.setting')
     app.config.from_object('app.secure')
@@ -61,6 +74,7 @@ def create_app():
 
     db.init_app(app)
     db.create_all(app=app)
+    migrate = Migrate(app, db)
 
     login_manager.init_app(app)
     login_manager.login_view = 'web.login'

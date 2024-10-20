@@ -1,0 +1,61 @@
+swagger: '2.0'
+info:
+  description: API for applying a new bank card for the authenticated user.
+  version: "1.0.0"
+  title: Apply for a Bank Card API
+
+host: "localhost:5000"
+basePath: "/bank"
+
+schemes:
+  - "http"
+
+paths:
+  /apply_bank_card:
+    post:
+      tags:
+        - Bank User
+      summary: "申请新的银行卡"
+      description: "允许已经通过审核的用户申请新的银行卡。验证码将会发送到绑定的邮箱。"
+      operationId: "applyBankCard"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "header"
+          name: "Authorization"
+          description: "Bearer token for JWT authentication"
+          required: true
+          type: "string"
+          example: "Bearer <your-jwt-token>"
+      responses:
+        200:
+          description: "申请成功，验证码已发送到用户的邮箱。"
+          schema:
+            type: "object"
+            properties:
+              msg:
+                type: "string"
+                example: "验证码已发送到您的邮箱，请查收"
+              card_id:
+                type: "integer"
+                example: 12345
+        403:
+          description: "用户未经过审核，无法绑定银行卡"
+          schema:
+            type: "object"
+            properties:
+              msg:
+                type: "string"
+                example: "用户未经过审核，无法绑定银行卡"
+        401:
+          description: "JWT 认证失败"
+          schema:
+            type: "object"
+            properties:
+              msg:
+                type: "string"
+                example: "Unauthorized"
+      security:
+        - Bearer: []

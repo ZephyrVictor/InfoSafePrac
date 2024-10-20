@@ -1,6 +1,7 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+from flasgger import swag_from
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 
@@ -12,49 +13,11 @@ from ..models.BankUser import BankUser
 
 bank_bp = Blueprint('bank', __name__)
 
-def bank_user_required(fn):
-    def wrapper(*args, **kwargs):
-        verify_jwt_in_request()
-        claims = get_jwt()
-        if claims.get('user_type') != 'bank':
-            return jsonify({'msg': '需要银行用户身份'}), 403
-        return fn(*args, **kwargs)
-    wrapper.__name__ = fn.__name__
-    return wrapper
-
 
 @bank_bp.route('/apply_bank_card', methods=['POST'])
 @jwt_required()
-@bank_user_required
+@swag_from('../docs/apply_bank_card.yml')
 def apply_bank_card():
-    """
-    用户申请绑定银行卡
-    ---
-    tags:
-      - Bank
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: 验证码已发送到您的邮箱，请查收
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 验证码已发送到您的邮箱，请查收
-            card_id:
-              type: integer
-              example: 1
-      403:
-        description: 用户未经过审核，无法绑定银行卡
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 用户未经过审核，无法绑定银行卡
-    """
     user_id = get_jwt_identity()
     user = BankUser.query.get(user_id)
 
@@ -74,7 +37,6 @@ def apply_bank_card():
 
 @bank_bp.route('/confirm_bank_card', methods=['POST'])
 @jwt_required()
-@bank_user_required
 def confirm_bank_card():
     """
     用户确认绑定银行卡
@@ -149,7 +111,6 @@ def confirm_bank_card():
 
 @bank_bp.route('/deposit', methods=['POST'])
 @jwt_required()
-@bank_user_required
 def deposit():
     """
     用户充值
@@ -225,7 +186,6 @@ def deposit():
 
 @bank_bp.route('/withdraw', methods=['POST'])
 @jwt_required()
-@bank_user_required
 def withdraw():
     """
     用户取钱

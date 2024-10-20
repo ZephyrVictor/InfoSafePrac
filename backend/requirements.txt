@@ -7,3 +7,5 @@ Flask-Mail==0.9.1
 Flasgger==0.9.5
 Werkzeug==2.1.2
 SQLAlchemy==1.4.39
+
+alembic~=1.13.3
