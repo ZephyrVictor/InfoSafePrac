@@ -11,6 +11,7 @@ from ..models.base import db
 
 user_bp = Blueprint('user', __name__)
 
+
 @user_bp.route('/bind_bank_user', methods=['POST'])
 @jwt_required()
 def bind_bank_user():

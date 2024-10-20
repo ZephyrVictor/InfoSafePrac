@@ -14,8 +14,10 @@ from app import db, logger
 
 # 对验证码进行管理 负责发邮件
 class CaptchaManager:
-    def __init__(self, user):
-        self.victim = user
+    def __init__(self, user=None, bank_card=None):
+        """可以传递 BankCard 对象或 User 对象"""
+        self.victim = user or bank_card
+        self.bank_card = bank_card
         self.expiration = current_app.config.get('CAPTCHA_EXPIRATION', 60)  # 默认60秒
         self.plain_captcha = None
 
@@ -32,9 +34,19 @@ class CaptchaManager:
         if not self.plain_captcha:
             raise ValueError("验证码未生成")
 
+        # 如果是 bank_card 对象，查找相关的用户来获取邮箱
+        if self.bank_card:
+            # 查找与 bank_card 关联的 BankUser（假设通过 user_id 查找）
+            user = BankUser.query.filter_by(UserId=self.bank_card.user_id).first()
+            if not user or not user.email:
+                raise ValueError("无法找到用户或用户的邮箱")
+            email = user.email
+        else:
+            # 否则使用 user 对象的 email
+            email = self.victim.email
+
         # 发送邮件，使用明文验证码
-        send_mail(self.victim.email, subject, template, user=self.victim, captcha=self.plain_captcha,
-                  expire=self.expiration)
+        send_mail(email, subject, template, user=self.victim, captcha=self.plain_captcha, expire=self.expiration)
 
     def verify_captcha(self, input_captcha):
         """验证用户输入的验证码"""

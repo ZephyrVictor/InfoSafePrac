@@ -125,56 +125,6 @@ def confirm_bank_card():
 def deposit():
     """
     用户充值
-    ---
-    tags:
-      - Bank
-    security:
-      - Bearer: []
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          required:
-            - card_id
-            - amount
-            - captcha
-          properties:
-            card_id:
-              type: integer
-              description: 银行卡ID
-              example: 1
-            amount:
-              type: number
-              format: float
-              description: 充值金额
-              example: 100.50
-            captcha:
-              type: string
-              description: 验证码
-              example: 123456
-    responses:
-      200:
-        description: 充值成功
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 充值成功
-            balance:
-              type: number
-              format: float
-              example: 200.75
-      400:
-        description: 充值失败或验证码错误
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: 充值失败 或 验证码错误或已过期
     """
     user_id = get_jwt_identity()
     data = request.get_json()
@@ -182,13 +132,17 @@ def deposit():
     amount = data.get('amount')
     captcha = data.get('captcha')
 
+    # 查找对应的银行卡
     bank_card = BankCard.query.filter_by(CardId=card_id, user_id=user_id, is_active=True).first()
     if not bank_card:
         return jsonify({'msg': '银行卡不存在或未激活'}), 400
 
-    if not bank_card.verify_captcha(captcha):
+    # 验证验证码
+    captcha_manager = CaptchaManager(user=bank_card)
+    if not captcha_manager.verify_captcha(captcha):
         return jsonify({'msg': '验证码错误或已过期'}), 400
 
+    # 验证码正确，进行充值操作
     if bank_card.deposit(amount):
         return jsonify({'msg': '充值成功', 'balance': bank_card.balance}), 200
     else:
@@ -277,3 +231,23 @@ def withdraw():
     else:
         return jsonify({'msg': '取款失败，余额不足'}), 400
 
+
+@bank_bp.route("/deposit_request", methods=["POST"])
+@jwt_required()
+def deposit_request():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    card_id = data.get('card_id')
+    amount = data.get('amount')
+
+    # 查找对应的银行卡
+    bank_card = BankCard.query.filter_by(CardId=card_id, user_id=user_id, is_active=True).first()
+    if not bank_card:
+        return jsonify({'msg': '银行卡不存在或未激活'}), 404
+
+    # 生成验证码并发送到用户邮箱
+    captcha_manager = CaptchaManager(bank_card=bank_card)
+    captcha_manager.generate_captcha()
+    captcha_manager.send_captcha_email('充值验证码', 'email/captcha.html')
+
+    return jsonify({'msg': '充值请求提交成功，验证码已发送至您的邮箱'}), 200

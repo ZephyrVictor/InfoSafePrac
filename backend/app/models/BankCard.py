@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 import random
 
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.models.base import Base, db
 from app.models.BankUser import BankUser
@@ -19,7 +19,7 @@ class BankCard(Base):
     # user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
     balance = Column(Float, default=0.0)
     is_active = Column(Boolean, default=False)
-    _captcha = Column("captcha",String(255), nullable=True)
+    _captcha = Column("captcha",String(255), nullable=True)  # 验证码
 
 
     user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
@@ -44,17 +44,25 @@ class BankCard(Base):
         return ''.join([str(random.randint(0, 9)) for _ in range(19)])
 
     def set_captcha(self):
+        """生成验证码"""
         self.captcha = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-        self.captcha_expiry = datetime.utcnow() + timedelta(minutes=10)
         db.session.commit()
 
     def verify_captcha(self, input_captcha):
-        if self.captcha == input_captcha and datetime.utcnow() <= self.captcha_expiry:
-            self.captcha = None
-            self.captcha_expiry = None
-            db.session.commit()
-            return True
+        """验证用户输入的验证码"""
+        if self._captcha and check_password_hash(self._captcha, input_captcha):
+            if datetime.utcnow() <= self.captcha_expiry:
+                self.captcha = None
+                # self.captcha_expiry = None
+                db.session.commit()
+                return True
         return False
+
+    def generate_captcha(self, captcha_value, expiry_seconds=60):
+        """生成哈希化验证码并设置过期时间"""
+        self.captcha = captcha_value  # 触发setter进行哈希化
+        self.captcha_expiry = datetime.utcnow() + timedelta(seconds=expiry_seconds)
+        db.session.commit()
 
     def deposit(self, amount):
         if amount > 0:
