@@ -10,20 +10,10 @@ from ..models.base import db
 
 store_bp = Blueprint('store', __name__)
 
-def shop_user_required(fn):
-    def wrapper(*args, **kwargs):
-        verify_jwt_in_request()
-        claims = get_jwt()
-        if claims.get('user_type') != 'shop':
-            return jsonify({'msg': '需要外卖平台用户身份'}), 403
-        return fn(*args, **kwargs)
-    wrapper.__name__ = fn.__name__
-    return wrapper
 
 
 @store_bp.route('/apply_store', methods=['POST'])
 @jwt_required()
-@shop_user_required
 def apply_store():
     """
     申请开店
@@ -73,7 +63,6 @@ def apply_store():
 
 @store_bp.route('/view_earnings', methods=['GET'])
 @jwt_required()
-@shop_user_required
 def view_earnings():
     """
     商家查看收益

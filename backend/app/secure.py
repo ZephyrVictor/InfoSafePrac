@@ -13,4 +13,4 @@ MAIL_USERNAME = '1010593279@qq.com'
 MAIL_PASSWORD = 'auzizwpkwaixbbia'
 MAIL_SUBJECT_PREFIX = '<线上虚拟交易平台>'
 
-CAPTCHA_EXPIRATION = 300   # 验证码过期时间
+CAPTCHA_EXPIRATION = 1200   # 验证码过期时间

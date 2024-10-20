@@ -100,6 +100,7 @@ class BankUser(Base):
     @staticmethod
     def generate_jwt(user, remember=False):
         expires = timedelta(days=7) if remember else timedelta(days=1)
+        print(f"Generating JWT for user_id: {user.UserId}")  # 打印user_id
         return create_access_token(
             identity=user.UserId,
             expires_delta=expires,

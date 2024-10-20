@@ -25,8 +25,9 @@ class BankCard(Base):
     user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
     user = relationship('BankUser', back_populates='bank_cards')
 
-    def __init__(self, **kwargs):
+    def __init__(self, user_id, **kwargs):
         super(BankCard, self).__init__(**kwargs)
+        self.user_id = user_id  # 设置 user_id
         if not self.card_number:
             self.card_number = self.generate_card_number()
 

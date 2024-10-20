@@ -10,10 +10,17 @@ from app.libs.email import send_mail
 from app import db
 from ..libs.captcha import CaptchaManager
 from ..models.BankUser import BankUser
+from ..utils import Logger
 
 bank_bp = Blueprint('bank', __name__)
 
 
+# 逻辑：
+# 用户注册后，要经过管理员审核才有资格开卡
+# 开卡的时候，会先生成一个银行卡，然后交到数据库里
+# 用户经过验证码验证后银行卡才会激活 否则就是废卡
+
+# 申请一张银行卡
 @bank_bp.route('/apply_bank_card', methods=['POST'])
 @jwt_required()
 @swag_from('../docs/apply_bank_card.yml')
@@ -22,7 +29,7 @@ def apply_bank_card():
     user = BankUser.query.get(user_id)
 
     if not user.isExamined:
-        return jsonify({'msg': '用户未经过审核，无法绑定银行卡'}), 403
+        return jsonify({'msg': '用户未经过审核，无法申请'}), 403
 
     new_card = BankCard(user_id=user.UserId)
     db.session.add(new_card)
@@ -32,7 +39,7 @@ def apply_bank_card():
     captcha_manager.generate_captcha()
     captcha_manager.send_captcha_email('绑定银行卡验证码', 'email/bind_bank_card.html')
 
-    return jsonify({'msg': '验证码已发送到您的邮箱，请查收', 'card_id': new_card.CardId}), 200
+    return jsonify({'msg': '验证码已发送到您的邮箱，请查收', 'card_number': new_card.card_number}), 200
 
 
 @bank_bp.route('/confirm_bank_card', methods=['POST'])
@@ -91,22 +98,26 @@ def confirm_bank_card():
     """
     user_id = get_jwt_identity()
     data = request.get_json()
-    card_id = data.get('card_id')
+    card_number = data.get('card_number')
     captcha = data.get('captcha')
 
     user = BankUser.query.get(user_id)
     captcha_manager = CaptchaManager(user)
-
-    if not captcha_manager.verify_captcha(captcha):
-        return jsonify({'msg': '验证码错误或已过期'}), 400
-
-    bank_card = BankCard.query.filter_by(CardId=card_id, user_id=user_id).first()
+    # 先拿到银行卡
+    # 应当用card_number来索引
+    bank_card = BankCard.query.filter_by(card_number=card_number, user_id=user_id).first()
     if not bank_card:
         return jsonify({'msg': '银行卡不存在'}), 404
 
+    if not captcha_manager.verify_captcha(captcha):
+        # 如果银行卡存在， 而且验证码过期了 那就应该删除
+        if bank_card:
+            db.session.delete(bank_card)
+            db.session.commit()  # 提交更改
+        return jsonify({'msg': '验证码错误或已过期'}), 400
     bank_card.is_active = True
     db.session.commit()
-    return jsonify({'msg': '银行卡绑定成功'}), 200
+    return jsonify({'msg': '银行卡激活成功'}), 200
 
 
 @bank_bp.route('/deposit', methods=['POST'])
@@ -265,3 +276,4 @@ def withdraw():
         return jsonify({'msg': '取款成功', 'balance': bank_card.balance}), 200
     else:
         return jsonify({'msg': '取款失败，余额不足'}), 400
+

@@ -9,6 +9,9 @@ basePath: "/bank"
 
 schemes:
   - "http"
+tags:
+  - name: Bank User
+    description: "Operations about bank users"
 
 paths:
   /apply_bank_card:

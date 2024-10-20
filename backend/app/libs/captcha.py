@@ -33,10 +33,10 @@ class CaptchaManager:
             raise ValueError("验证码未生成")
 
         # 发送邮件，使用明文验证码
-        send_mail(self.victim.email, subject, template, user=self.victim, captcha=self.plain_captcha, expire = self.expiration)
+        send_mail(self.victim.email, subject, template, user=self.victim, captcha=self.plain_captcha,
+                  expire=self.expiration)
 
     def verify_captcha(self, input_captcha):
         """验证用户输入的验证码"""
         # 调用用户模型中的 verify_captcha 方法来验证输入的验证码
         return self.victim.verify_captcha(input_captcha)
-
