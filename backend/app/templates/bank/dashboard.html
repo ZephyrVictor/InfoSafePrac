@@ -1,8 +1,17 @@
 {% extends 'base.html' %}
 {% block title %}用户中心{% endblock %}
 {% block content %}
-<h2 class="text-2xl font-bold mb-4">我的银行卡</h2>
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-2xl font-bold">我的银行卡</h2>
+    <!-- 将按钮放在右上角 -->
+    <div class="flex space-x-4">
+        <a href="{{ url_for('web.auth.set_paypassword') }}" class="bg-blue-500 text-white px-4 py-2 rounded">设置支付密码</a>
+        <a href="{{ url_for('web.auth.logout') }}" class="bg-red-500 text-white px-4 py-2 rounded">退出登录</a>
+    </div>
+</div>
+
 <a href="{{ url_for('web.bank.apply_bank_card') }}" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 inline-block">申请新银行卡</a>
+
 <table class="w-full bg-white shadow-md rounded mb-4">
     <thead>
         <tr>

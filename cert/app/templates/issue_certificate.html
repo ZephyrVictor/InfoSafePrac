@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>颁发新证书</h1>
+<form method="post">
+    <label for="common_name">Common Name:</label>
+    <input type="text" id="common_name" name="common_name" required>
+    <button type="submit">颁发证书</button>
+</form>
+
+{% if certificate and private_key %}
+<h2>新颁发的证书</h2>
+<h3>Certificate:</h3>
+<pre>{{ certificate }}</pre>
+<h3>Private Key:</h3>
+<pre>{{ private_key }}</pre>
+{% endif %}
+{% endblock %}

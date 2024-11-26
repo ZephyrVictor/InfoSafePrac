@@ -57,7 +57,6 @@ def bank_register():
     return render_template('auth/bank_register.html')
 
 
-
 @auth_bp.route('/bank/login', methods=['GET', 'POST'])
 def bank_login():
     if request.method == 'POST':
@@ -130,6 +129,7 @@ def bank_activate():
     flash('激活验证码已发送，请查收您的邮箱。', 'info')
     return render_template('auth/activate_account.html')
 
+
 @auth_bp.route("/bank/activate/confirm", methods=['POST'])
 @jwt_required()
 def confirm_activate():
@@ -157,7 +157,6 @@ def confirm_activate():
         return redirect(url_for('web.auth.bank_activate'))
 
 
-
 @auth_bp.route("/bank/reset/password", methods=['GET', 'POST'])
 def bank_reset_password_request():
     if request.method == 'POST':
@@ -183,7 +182,6 @@ def bank_reset_password_request():
             flash('用户不存在', 'error')
             return redirect(url_for('web.auth.bank_reset_password_request'))
     return render_template('auth/bank_reset_password_request.html')
-
 
 
 @auth_bp.route("/bank/reset/password/confirm", methods=['GET', 'POST'])
@@ -226,7 +224,6 @@ def bank_reset_password():
             flash('验证码错误或已过期', 'error')
             return redirect(url_for('web.auth.bank_reset_password', email=email))
     return render_template('auth/bank_reset_password.html', email=email)
-
 
 
 @auth_bp.route('/bank/logout')
@@ -353,3 +350,54 @@ def shop_login():
         max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24
     )
     return response, 200
+
+
+@auth_bp.route('/set_paypassword', methods=['GET', 'POST'])
+@jwt_required()
+def set_paypassword():
+    user_id = get_jwt_identity()
+    user = BankUser.query.get(user_id)
+
+    if request.method == 'POST':
+        payPassword = request.form.get('payPassword')
+        if len(payPassword) != 6 or not payPassword.isdigit():
+            flash('支付密码必须为6位数字', 'error')
+            return redirect(url_for('web.auth.set_paypassword'))
+
+        # 发送验证码
+        captcha_manager = CaptchaManager(user)
+        captcha_manager.generate_captcha()
+        captcha_manager.send_captcha_email('设置支付密码验证码', 'email/captcha.html')
+        session['pay_password'] = payPassword  # 暂存支付密码
+        flash('验证码已发送到您的邮箱，请查收', 'info')
+        return render_template('auth/confirm_paypassword.html')
+
+    return render_template('auth/set_paypassword.html')
+
+
+@auth_bp.route('/confirm_paypassword', methods=['POST'])
+@jwt_required()
+def confirm_paypassword():
+    user_id = get_jwt_identity()
+    user = BankUser.query.get(user_id)
+    captcha = request.form.get('captcha')
+    payPassword = session.get('pay_password')
+
+    if not user or not payPassword:
+        flash('非法操作，请重新设置支付密码', 'error')
+        return redirect(url_for('web.auth.set_paypassword'))
+
+    # 验证验证码
+    captcha_manager = CaptchaManager(user)
+    if not captcha_manager.verify_captcha(captcha):
+        flash('验证码错误或已过期', 'error')
+        return redirect(url_for('web.auth.set_paypassword'))
+
+    # 设置支付密码
+    user.payPassword = payPassword
+    db.session.commit()
+    session.pop('pay_password', None)  # 清除暂存的支付密码
+    flash('支付密码设置成功', 'success')
+    return redirect(url_for('web.bank.dashboard'))
+
+
