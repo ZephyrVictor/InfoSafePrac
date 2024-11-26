@@ -1,0 +1,16 @@
+<!-- templates/auth/activate_account.html -->
+
+{% extends 'base.html' %}
+{% block title %}激活账户{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 shadow-md rounded">
+    <h2 class="text-2xl font-bold mb-4">激活账户</h2>
+    <p class="mb-4">请输入发送到您邮箱的验证码以激活您的账户。</p>
+    <form method="POST" action="{{ url_for('web.auth.confirm_activate') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrftoken') }}">
+        <label for="captcha" class="block mb-2">验证码：</label>
+        <input type="text" id="captcha" name="captcha" class="w-full border p-2 mb-4" required>
+        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">激活账户</button>
+    </form>
+</div>
+{% endblock %}

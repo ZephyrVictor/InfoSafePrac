@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}用户中心{% endblock %}
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">我的银行卡</h2>
+<a href="{{ url_for('web.bank.apply_bank_card') }}" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 inline-block">申请新银行卡</a>
+<table class="w-full bg-white shadow-md rounded mb-4">
+    <thead>
+        <tr>
+            <th class="border px-4 py-2">卡号</th>
+            <th class="border px-4 py-2">余额</th>
+            <th class="border px-4 py-2">状态</th>
+            <th class="border px-4 py-2">操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for card in bank_cards %}
+        <tr>
+            <td class="border px-4 py-2 cursor-pointer card-number"
+                data-full-number="{{ card.card_number }}"
+                data-masked-number="{{ card.masked_card_number }}"
+                onclick="toggleCardNumber(this)">
+                {{ card.masked_card_number }}
+            </td>
+            <td class="border px-4 py-2">
+                {% if card.balance < 100000 %}
+                {{ card.balance }}
+                {% else %}
+                ****
+                {% endif %}
+            </td>
+            <td class="border px-4 py-2">{% if card.is_active %}已激活{% else %}未激活{% endif %}</td>
+            <td class="border px-4 py-2">
+                {% if card.is_active %}
+                <a href="{{ url_for('web.bank.deposit', card_id=card.CardId) }}" class="bg-green-500 text-white px-2 py-1 rounded">充值</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    function toggleCardNumber(element) {
+        const fullNumber = element.getAttribute('data-full-number');
+        const maskedNumber = element.getAttribute('data-masked-number');
+        if (element.textContent.trim() === maskedNumber) {
+            element.textContent = fullNumber;
+        } else {
+            element.textContent = maskedNumber;
+        }
+    }
+</script>
+{% endblock %}

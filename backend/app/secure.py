@@ -14,3 +14,6 @@ MAIL_PASSWORD = 'auzizwpkwaixbbia'
 MAIL_SUBJECT_PREFIX = '<线上虚拟交易平台>'
 
 CAPTCHA_EXPIRATION = 1200   # 验证码过期时间
+
+
+aes_key = "sdgfnhjksdvbdufvbdfuibv"

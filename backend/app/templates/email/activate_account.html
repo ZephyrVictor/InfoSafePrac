@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充值验证码</title>
+    <style>
+        .bg-slate-100 { background-color: #f1f5f9; }
+        .dark\:bg-slate-800 { background-color: #1e293b; }
+        .min-h-screen { min-height: 100vh; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .max-w-md { max-width: 28rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .bg-white { background-color: #ffffff; }
+        .p-6 { padding: 1.5rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .shadow-md { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .bg-purple-600 { background-color: #9333ea; }
+        .text-white { color: #ffffff; }
+        .text-center { text-align: center; }
+        .p-4 { padding: 1rem; }
+        .rounded-t-lg { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .font-bold { font-weight: 700; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .font-semibold { font-weight: 600; }
+        .mt-2 { margin-top: 0.5rem; }
+        .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+        .text-purple-600 { color: #9333ea; }
+        .my-4 { margin-top: 1rem; margin-bottom: 1rem; }
+        .mt-4 { margin-top: 1rem; }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-800 min-h-screen flex items-center justify-center">
+    <!-- 整个卡片布局 -->
+    <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
+
+        <!-- Header 部分 -->
+        <header class="bg-purple-600 text-white text-center p-4 rounded-t-lg">
+            <h1 class="text-2xl font-bold">激活您的账户</h1>
+        </header>
+
+        <!-- 信件样式正文部分 -->
+        <div class="bg-white p-6 rounded-b-lg">
+            <p class="text-lg font-semibold">亲爱的 {{ user.nickname }}，</p>
+            <p class="mt-2">感谢您注册我们的银行系统。请使用以下验证码激活您的账户:</p>
+
+            <!-- 验证码部分，紫色加粗、放大 -->
+            <h2 class="text-3xl font-bold text-center text-purple-600 my-4">{{ captcha }}</h2>
+
+            <!-- 验证码有效期说明 -->
+            <p class="mt-4 text-center">该验证码有效期为 {{ expire }} 秒，请及时使用。</p>
+
+            <p class="mt-4">Yours,</p>
+            <p>Zephyr#3</p>
+
+            <p class="mt-2 text-center"><small>注意：请勿回复此邮件。</small></p>
+        </div>
+
+    </div>
+</body>
+</html>

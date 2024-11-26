@@ -21,7 +21,7 @@ class BankCard(Base):
     is_active = Column(Boolean, default=False)
     _captcha = Column("captcha",String(255), nullable=True)  # 验证码
 
-
+# TODO: 为 BankCard 添加一个 captcha_expiry 字段，用于保存验证码的过期时间
     user_id = Column(Integer, ForeignKey('bank_user.UserId'), nullable=False)
     user = relationship('BankUser', back_populates='bank_cards')
 
@@ -77,3 +77,17 @@ class BankCard(Base):
             db.session.commit()
             return True
         return False
+
+    @property
+    def masked_card_number(self):
+        # 仅显示前4位和后4位，中间使用 * 号替代
+        if self.card_number:
+            return f"{self.card_number[:4]} **** **** {self.card_number[-4:]}"
+        return "未知卡号"
+
+    @property
+    def masked_balance(self):
+        # 隐藏具体余额，只显示大概范围
+        if self.balance is not None:
+            return f"¥ {int(self.balance) // 100 * 100} +"
+        return "未知余额"

@@ -6,7 +6,7 @@ __author__ = 'Zephyr369'
 # import datetime
 import random
 from datetime import datetime, timedelta
-
+from flask_login import UserMixin
 import jwt
 from flask import current_app
 from flask_jwt_extended import create_access_token, decode_token
@@ -125,3 +125,9 @@ class BankUser(Base):
         except Exception as e:
             logger.error(f'JWT解析失败: {e}')
             return None
+
+    def get_id(self):
+        return str(self.UserId)
+
+    def get_name(self):
+        return self.nickname

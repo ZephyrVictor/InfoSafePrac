@@ -2,13 +2,14 @@
 __author__ = 'Zephyr369'
 
 from flasgger import Swagger
-from flask import Flask
+from flask import Flask, url_for
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
+from werkzeug.utils import redirect
 
 from app.models.base import db
 from app.utils.Logger import WebLogger
@@ -53,9 +54,17 @@ def create_app():
     app.config.from_object('app.setting')
     app.config.from_object('app.secure')
     app.config['JWT_SECRET_KEY'] = 'ssssseeeeeffffff/sdfsadf^&*KKKKKL*(*(*))'  # 用于加密JWT的密钥
+    app.config['aes_key'] = bytearray(b'\xa1\xd9\xa7\xb3\x9d\x84\x0e\xe2\x98\xf1\xba\xd2\xb8\x18\x7f\x92\xb0\x87\x03\xfc\xa7\xc9\xf8\xec\xb2\x8b\xf3\xf8\x4d\x83\x1e\x4a')
 
     # 初始化JWTManager
     jwt = JWTManager(app)
+
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # 启用 CSRF 保护
+    app.config['JWT_COOKIE_SECURE'] = False  # 使用 HTTPS 时应设为 True
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = False
+    app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token'
+    app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = 'csrftoken'  # 设置 CSRF 令牌的 Cookie 名称
 
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):
@@ -77,7 +86,7 @@ def create_app():
     migrate = Migrate(app, db)
 
     login_manager.init_app(app)
-    login_manager.login_view = 'web.login'
+    login_manager.login_view = 'web.auth.bank_login'
     login_manager.login_message = '请先登录或注册'
     mail.init_app(app)
     limiter.init_app(app)
@@ -88,3 +97,7 @@ def create_app():
 def register_blueprint(app):
     from app.web import web_bp
     app.register_blueprint(web_bp)
+
+    @app.route('/')
+    def default_route():
+        return redirect(url_for('web.auth.bank_login'))  # 跳转到登录页面
