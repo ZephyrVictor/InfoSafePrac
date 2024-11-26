@@ -1,0 +1,16 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "A Flask-Tailwind project",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tailwindcss -i ./static/css/main.css -o ./static/css/tailwind.css --minify"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.7",
+    "postcss": "^8.4.14",
+    "tailwindcss": "^3.1.0"
+  }
+}

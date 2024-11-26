@@ -15,11 +15,10 @@ class Order(Base):
     order_number = Column(String(50), unique=True, nullable=False)
     buyer_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)
     seller_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)
-    store_id = Column(Integer, ForeignKey('store.StoreId'), nullable=False)
+    store_id = Column(Integer, ForeignKey('item.ItemId'), nullable=False)
     amount = Column(Float, nullable=False)
     order_time = Column(DateTime, default=datetime.utcnow)
     details = Column(String(255), nullable=False)
 
     buyer = relationship('ShopUser', foreign_keys=[buyer_id], backref='purchases')
     seller = relationship('ShopUser', foreign_keys=[seller_id], backref='sales')
-    item = relationship('Item', backref='orders')  # 修改为 item 的关系

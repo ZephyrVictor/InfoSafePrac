@@ -1,0 +1,35 @@
+<!-- templates/shop_index.html -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-gray-100">
+    <!-- Header -->
+    <div class="bg-cover bg-center h-64 text-white" style="background-image: url('{{ url_for('static', filename='shopbg.jpg') }}');">
+        <div class="flex items-center justify-center h-full w-full bg-gray-900 bg-opacity-50">
+            <div class="text-center">
+                <h1 class="text-5xl font-bold">花鸟鱼虫二手市场</h1>
+                <p class="text-xl mt-4">小猫往鬼子手里塞手榴弹骗他是核桃</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-6 py-8">
+        <div class="flex flex-wrap -mx-4">
+            {% for item in items %}
+            <div class="w-full md:w-1/3 lg:w-1/4 px-4 mb-8">
+                <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+                    <img src="{{ item.image_path or url_for('static', filename='default.jpg') }}" alt="{{ item.Item_name }}" class="w-full h-56 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-lg">{{ item.Item_name }}</h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-blue-500 font-semibold">￥{{ item.price }}</span>
+                            <a href="{{ url_for('shop.view_item', item_id=item.ItemId) }}" class="text-blue-600 hover:text-blue-800">查看详情</a>
+                        </div>
+                        <p class="text-gray-600 text-sm mt-2">{{ item.description }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

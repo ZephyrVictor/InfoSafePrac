@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto px-6 py-8">
+    <h2 class="text-2xl font-bold mb-6">激活账号</h2>
+    <form method="POST">
+        <div class="mb-4">
+            <label class="block text-gray-700">邮箱</label>
+            <input type="email" name="email" class="w-full px-4 py-2 border rounded-md">
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">验证码</label>
+            <input type="text" name="code" class="w-full px-4 py-2 border rounded-md">
+        </div>
+        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-md">激活</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+2024-09-23 21:40:34,094 - WebLogger - INFO - 用户zephyr_test密码输入错误
+2024-09-23 21:40:41,226 - WebLogger - INFO - 用户zephyr_test登录成功
+2024-10-18 22:47:38,082 - WebLogger - INFO - 银行用户zephyr登录成功
+2024-10-18 22:51:03,574 - WebLogger - INFO - 用户Zephyr_shop登录成功
+2024-10-19 23:25:28,870 - WebLogger - INFO - 银行用户Zephyr密码输入错误
+2024-10-19 23:25:31,976 - WebLogger - INFO - 银行用户Zephyr登录成功
+2024-10-19 23:55:11,304 - WebLogger - INFO - 银行用户admin登录成功
+2024-10-20 00:07:04,915 - WebLogger - INFO - 银行用户Zephyr密码输入错误
+2024-10-20 00:07:11,455 - WebLogger - INFO - 银行用户Zephyr登录成功
+2024-10-20 00:13:08,816 - WebLogger - INFO - 银行用户admin登录成功
+2024-10-20 08:59:12,389 - WebLogger - INFO - 银行用户Zephyr登录成功
+2024-10-20 09:24:06,511 - WebLogger - DEBUG - 发送了一个验证码988777
+2024-11-26 19:08:56,109 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:13:49,395 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:15:32,340 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:16:10,782 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:16:53,173 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:17:52,204 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:22:07,920 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:24:09,755 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:25:20,031 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:26:53,382 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:31:43,673 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:32:42,479 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed
+2024-11-26 19:33:09,320 - WebLogger - ERROR - 邮件发送失败: Connection unexpectedly closed

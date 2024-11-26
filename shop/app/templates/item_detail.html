@@ -1,0 +1,20 @@
+<!-- templates/item_detail.html -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto px-6 py-8">
+    <div class="flex flex-col md:flex-row -mx-4">
+        <div class="md:w-1/2 px-4">
+            <img src="{{ item.image_path or url_for('static', filename='default.jpg') }}" alt="{{ item.Item_name }}" class="w-full h-full object-cover">
+        </div>
+        <div class="md:w-1/2 px-4 mt-6 md:mt-0">
+            <h2 class="text-2xl font-bold">{{ item.Item_name }}</h2>
+            <div class="text-xl text-blue-500 font-semibold mt-2">￥{{ item.price }}</div>
+            <p class="text-gray-700 mt-4">{{ item.description }}</p>
+            <form action="{{ url_for('shop.add_to_cart', item_id=item.ItemId) }}" method="POST" class="mt-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-md">加入购物车</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
