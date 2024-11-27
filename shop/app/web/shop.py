@@ -2,11 +2,14 @@
 __author__ = 'Zephyr369'
 
 import datetime
+import glob
+import os
 
 from flask import request, jsonify, Blueprint, render_template, current_app, url_for, session, flash
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 from flask_login import login_required, current_user
 from requests_oauthlib import OAuth2Session
+from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import abort
 from werkzeug.utils import redirect
 
@@ -62,13 +65,18 @@ def bind_bank_account_callback():
 
 @shop_bp.route('/')
 def index():
-    items = Item.query.all()  # 从数据库中获取所有商品
-    return render_template('shop_index.html', items=items)  # 渲染商城主界面
+    # 查询数据库中的所有商品
+    items = Item.query.all()
+
+    # 渲染主界面，无论是否登录，数据来源一致
+    return render_template('shop_index.html', items=items)
+
 
 @shop_bp.route('/item/<int:item_id>', endpoint='view_item')
 def view_item(item_id):
-    item = Item.query.get_or_404(item_id)
-    return render_template('shop/view_item.html', item=item)
+    cart_items = CartItem.query.options(joinedload(CartItem.item)).filter_by(user_id=current_user.UserId).all()
+    return render_template('shop/view_cart.html', cart_items=cart_items)
+
 
 @shop_bp.route('/upload_item', methods=['GET', 'POST'])
 @login_required
@@ -84,9 +92,10 @@ def upload_item():
             flash('所有字段都是必需的', 'error')
             return redirect(url_for('web.shop.upload_item'))
 
-        # 保存图片
+        # 保存图片并获取存储路径
         image_path = save_image(image, current_user.UserId)
 
+        # 创建商品记录
         item = Item(
             Item_name=item_name,
             Item_type=item_type,
@@ -103,11 +112,13 @@ def upload_item():
 
     return render_template('shop/upload_item.html')
 
+
 @shop_bp.route('/cart')
 @login_required
 def cart():
     cart_items = CartItem.query.filter_by(user_id=current_user.UserId).all()
     return render_template('shop/cart.html', cart_items=cart_items)
+
 
 @shop_bp.route('/add_to_cart/<int:item_id>', methods=['POST'])
 @login_required
@@ -121,6 +132,7 @@ def add_to_cart(item_id):
     db.session.commit()
     flash('已加入购物车', 'success')
     return redirect(url_for('web.shop.cart'))
+
 
 @shop_bp.route('/checkout', methods=['POST'])
 @login_required
@@ -149,6 +161,7 @@ def checkout():
     # 跳转到支付页面
     return redirect(url_for('web.shop.pay_order', order_id=order.OrderId))
 
+
 @shop_bp.route('/order/<int:order_id>/pay')
 @login_required
 def pay_order(order_id):
@@ -158,6 +171,7 @@ def pay_order(order_id):
 
     # 跳转到银行支付页面
     return redirect(url_for('web.bank.pay', order_id=order.OrderId))
+
 
 @shop_bp.route('/upload_item_image', methods=['POST'])
 @login_required

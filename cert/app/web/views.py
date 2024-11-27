@@ -1,6 +1,8 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+from datetime import datetime, timedelta
+
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from app.web import web_bp
 from app.models.certificate import Certificate
@@ -55,14 +57,32 @@ def api_issue_certificate():
     if not common_name:
         return jsonify({'error': 'common_name is required'}), 400
 
-    existing_cert = Certificate.query.filter_by(common_name=common_name).first()
-    if existing_cert and not existing_cert.revoked:
-        return jsonify({
-            'certificate': existing_cert.certificate_pem,
-            'private_key': existing_cert.private_key_pem
-        }), 200
+    # 检查是否已有未吊销且未过期的证书
+    existing_cert = Certificate.query.filter_by(common_name=common_name, revoked=False).first()
+    if existing_cert:
+        # 检查证书是否过期
+        if existing_cert.expiry_date > datetime.utcnow():
+            return jsonify({
+                'certificate': existing_cert.certificate_pem,
+                'private_key': existing_cert.private_key_pem
+            }), 200
+        else:
+            # 证书已过期，更新为吊销状态
+            existing_cert.revoked = True
+            db.session.commit()
 
+    # 颁发新证书
     cert_pem, key_pem = issue_certificate(common_name)
+    new_cert = Certificate(
+        common_name=common_name,
+        certificate_pem=cert_pem,
+        private_key_pem=key_pem,
+        expiry_date=datetime.utcnow() + timedelta(days=365),  # 设置证书有效期为1年
+        revoked=False
+    )
+    db.session.add(new_cert)
+    db.session.commit()
+
     return jsonify({
         'certificate': cert_pem,
         'private_key': key_pem

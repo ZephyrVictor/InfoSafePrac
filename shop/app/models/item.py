@@ -31,3 +31,8 @@ class Item(Base):
         self.image_path = image_path
         self.price = price
         self.owner_id = owner_id
+
+    @property
+    def image_url(self):
+        # 动态修正路径
+        return self.image_path.replace("\\", "/")

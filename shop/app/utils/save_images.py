@@ -19,43 +19,27 @@ def allowed_file(filename):
 
 def save_image(image, user_id):
     """
-    保存上传的图片到指定目录，并按用户ID分类管理。
+    保存上传的图片到指定目录，并返回存储路径。
 
     参数:
-    - image: 上传的文件对象 (通过 Flask 的 request.files 获取)
-    - user_id: 当前用户的 ID，用于分类文件夹
+    - image: 上传的文件对象
+    - user_id: 当前用户的 ID
 
     返回:
-    - image_path: 保存的图片相对路径，用于数据库存储
+    - image_path: 图片的相对路径，供存储到数据库
     """
-    # 检查文件类型是否允许
-    if not allowed_file(image.filename):
-        return jsonify({'error': 'Invalid file type. Only PNG, JPG, JPEG, GIF are allowed.'}), 400
+    # 确定上传目录
+    upload_folder = os.path.join('./app/static', 'upload', str(user_id))
+    os.makedirs(upload_folder, exist_ok=True)
 
     # 确保文件名安全
     filename = secure_filename(image.filename)
-
-    # 确定上传目录
-    upload_folder = os.path.join(current_app.root_path, 'upload', str(user_id))
-    if not os.path.exists(upload_folder):
-        os.makedirs(upload_folder)
-
-    # 文件存储路径
     file_path = os.path.join(upload_folder, filename)
 
     # 保存文件
     image.save(file_path)
 
-    # 返回相对路径，用于存储在数据库中
-    image_path = os.path.relpath(file_path, current_app.root_path)
-    return image_path
+    result_path = os.path.join("/upload",str(user_id),filename)
 
-    # 文件存储路径
-    file_path = os.path.join(upload_folder, filename)
-
-    # 保存文件
-    image.save(file_path)
-
-    # 返回相对路径，用于存储在数据库中
-    image_path = os.path.relpath(file_path, current_app.root_path)
-    return image_path
+    # 将路径格式化为正斜杠并返回 而且这个妈了个逼的为了前端渲染endpoint是static 会出现/static/static的情况 应该去掉
+    return result_path.replace("\\", "/")

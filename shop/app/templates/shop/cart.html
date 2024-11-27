@@ -13,8 +13,8 @@
                 <th>小计</th>
             </tr>
         </thead>
-        <tbody>
-            {% set total = 0 %}
+       <tbody>
+            {% set ns = namespace(total=0) %}
             {% for cart_item in cart_items %}
             <tr>
                 <td>{{ cart_item.item.Item_name }}</td>
@@ -22,16 +22,15 @@
                 <td>{{ cart_item.quantity }}</td>
                 <td>￥{{ cart_item.item.price * cart_item.quantity }}</td>
             </tr>
-            {% set total = total + (cart_item.item.price * cart_item.quantity) %}
+            {% set ns.total = ns.total + (cart_item.item.price * cart_item.quantity) %}
             {% endfor %}
             <tr>
                 <td colspan="3" class="text-right font-bold">总计</td>
-                <td>￥{{ total }}</td>
+                <td>￥{{ ns.total }}</td>
             </tr>
         </tbody>
     </table>
     <form action="{{ url_for('web.shop.checkout') }}" method="POST" class="mt-6">
-        {{ csrf_token() }}
         <button type="submit" class="bg-green-500 text-white px-6 py-2 rounded-md">结算</button>
     </form>
     {% else %}

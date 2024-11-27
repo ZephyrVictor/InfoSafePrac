@@ -25,21 +25,13 @@ class Order(Base):
     buyer = relationship('ShopUser', foreign_keys=[buyer_id], backref='purchases')
     seller = relationship('ShopUser', foreign_keys=[seller_id], backref='sales')
 
-    def generate_order_number():
-        """生成唯一的订单号"""
-        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')  # 时间戳部分
-        random_suffix = ''.join(random.choices(string.digits, k=6))  # 随机6位数字
-        return f"{timestamp}{random_suffix}"
+    def __init__(self, order_number, buyer_id, amount, details, order_time, seller_id=None, store_id=None):
+        self.order_number = order_number
+        self.buyer_id = buyer_id
+        self.amount = amount
+        self.details = details
+        self.seller_id = seller_id
+        self.store_id = store_id
+        self.order_time = order_time
 
-    def calculate_total(cart_items):
-        """
-        计算购物车中所有商品的总金额
 
-        参数:
-        - cart_items: List[Dict] - 每个字典包含商品和数量，例如 [{'item': item, 'quantity': 2}]
-
-        返回:
-        - float - 总金额
-        """
-        total = sum(item['item'].price * item['quantity'] for item in cart_items)
-        return total

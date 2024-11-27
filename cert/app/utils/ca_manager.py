@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.x509 import CertificateBuilder, NameOID
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-import datetime
+from datetime import datetime, timedelta
 import os
 from app.models.certificate import Certificate
 from app import db
@@ -41,9 +41,9 @@ def issue_certificate(common_name):
     ).serial_number(
         x509.random_serial_number()
     ).not_valid_before(
-        datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        datetime.utcnow() - timedelta(days=1)
     ).not_valid_after(
-        datetime.datetime.utcnow() + datetime.timedelta(days=365)
+        datetime.utcnow() + timedelta(days=365)
     )
 
     cert = cert_builder.sign(private_key=ca_private_key, algorithm=hashes.SHA256())
@@ -70,7 +70,7 @@ def issue_certificate(common_name):
 
 
 def revoke_certificate(common_name):
-    cert = Certificate.query.filter_by(common_name=common_name).first()
+    cert = Certificate.query.filter_by(common_name=common_name, revoked=0).first()
     if cert:
         cert.revoked = True
         db.session.commit()
@@ -80,8 +80,14 @@ def revoke_certificate(common_name):
 
 
 def is_certificate_revoked(common_name):
-    cert = Certificate.query.filter_by(common_name=common_name).first()
-    if cert:
-        return cert.revoked
-    else:
-        return False
+    '''先前实现的逻辑有问题，如果是.first 会一直返回被revoke的，因为我将第一个吊销了'''
+    # 查找所有符合 common_name 的证书，按 issue_date 降序排序
+    certificates = Certificate.query.filter_by(common_name=common_name).order_by(Certificate.issue_date.desc()).all()
+
+    for cert in certificates:
+        if not cert.revoked and cert.expiry_date > datetime.utcnow():
+            # 存在未吊销且未过期的证书
+            return False
+
+    # 如果没有找到有效的证书，返回 True 表示已吊销或无效
+    return True
