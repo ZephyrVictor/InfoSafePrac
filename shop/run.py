@@ -5,6 +5,7 @@ __author__ = 'Zephyr369'
 from app import create_app
 from startup_certificate import initialize_certificate
 import os
+from flask_wtf.csrf import CSRFProtect
 
 # 应用程序的 Common Name
 common_name = "shop_application"
@@ -12,6 +13,7 @@ common_name = "shop_application"
 # 初始化证书
 cert_path, key_path = initialize_certificate(common_name)
 
+csrf = CSRFProtect()
 # 创建 Flask 应用
 app = create_app()
 

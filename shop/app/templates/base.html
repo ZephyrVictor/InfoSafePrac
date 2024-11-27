@@ -5,6 +5,22 @@
     <meta charset="UTF-8">
     <title>{{ title or '商城' }}</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // 闪现消息淡出效果
+            const flashMessages = document.querySelectorAll(".flash-message");
+            if (flashMessages) {
+                setTimeout(() => {
+                    flashMessages.forEach(message => {
+                        message.classList.add("opacity-0", "transition", "duration-1000");
+                        setTimeout(() => {
+                            message.remove();
+                        }, 1000);
+                    });
+                }, 5000);
+            }
+        });
+    </script>
 </head>
 <body class="font-sans antialiased text-gray-900">
     <!-- 导航栏 -->
@@ -14,8 +30,9 @@
                 <div>
                     <a class="text-gray-800 text-xl font-bold md:text-2xl" href="{{ url_for('web.shop.index') }}">商城</a>
                 </div>
-                <div>
+                <div class="flex items-center">
                     {% if current_user.is_authenticated %}
+                        <a class="text-gray-800 mx-3" href="{{ url_for('web.shop.upload_item') }}">上传商品</a>
                         <a class="text-gray-800 mx-3" href="{{ url_for('web.shop.profile') }}">{{ current_user.nickname }}</a>
                         <a class="text-gray-800 mx-3" href="{{ url_for('web.auth.logout') }}">退出</a>
                     {% else %}
@@ -34,7 +51,7 @@
             {% if messages %}
                 <div class="container mx-auto px-6 py-4">
                     {% for category, message in messages %}
-                        <div class="bg-{{ 'red' if category == 'error' else 'green' }}-100 border border-{{ 'red' if category == 'error' else 'green' }}-400 text-{{ 'red' if category == 'error' else 'green' }}-700 px-4 py-3 rounded relative" role="alert">
+                        <div class="flash-message bg-{{ 'red' if category == 'error' else 'green' }}-100 border border-{{ 'red' if category == 'error' else 'green' }}-400 text-{{ 'red' if category == 'error' else 'green' }}-700 px-4 py-3 rounded relative" role="alert">
                             <span class="block sm:inline">{{ message }}</span>
                         </div>
                     {% endfor %}

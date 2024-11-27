@@ -15,14 +15,14 @@
         </thead>
         <tbody>
             {% set total = 0 %}
-            {% for item in cart_items %}
+            {% for cart_item in cart_items %}
             <tr>
-                <td>{{ item.item.Item_name }}</td>
-                <td>￥{{ item.item.price }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>￥{{ item.item.price * item.quantity }}</td>
+                <td>{{ cart_item.item.Item_name }}</td>
+                <td>￥{{ cart_item.item.price }}</td>
+                <td>{{ cart_item.quantity }}</td>
+                <td>￥{{ cart_item.item.price * cart_item.quantity }}</td>
             </tr>
-            {% set total = total + (item.item.price * item.quantity) %}
+            {% set total = total + (cart_item.item.price * cart_item.quantity) %}
             {% endfor %}
             <tr>
                 <td colspan="3" class="text-right font-bold">总计</td>
@@ -31,7 +31,7 @@
         </tbody>
     </table>
     <form action="{{ url_for('web.shop.checkout') }}" method="POST" class="mt-6">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ csrf_token() }}
         <button type="submit" class="bg-green-500 text-white px-6 py-2 rounded-md">结算</button>
     </form>
     {% else %}

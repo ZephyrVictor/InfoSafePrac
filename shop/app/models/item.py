@@ -22,3 +22,12 @@ class Item(Base):
     owner_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)  # 关联到 ShopUser
     owner = relationship('ShopUser', back_populates='items')  # 修正为对应 `ShopUser` 的 `items`
     orders = relationship('Order', backref='store', lazy='dynamic')
+
+    # app/models/order.p
+    def __init__(self, Item_name, Item_type, description, image_path, price, owner_id):
+        self.Item_name = Item_name
+        self.Item_type = Item_type
+        self.description = description
+        self.image_path = image_path
+        self.price = price
+        self.owner_id = owner_id

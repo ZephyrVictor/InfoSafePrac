@@ -65,6 +65,10 @@ def index():
     items = Item.query.all()  # 从数据库中获取所有商品
     return render_template('shop_index.html', items=items)  # 渲染商城主界面
 
+@shop_bp.route('/item/<int:item_id>', endpoint='view_item')
+def view_item(item_id):
+    item = Item.query.get_or_404(item_id)
+    return render_template('shop/view_item.html', item=item)
 
 @shop_bp.route('/upload_item', methods=['GET', 'POST'])
 @login_required
@@ -78,10 +82,10 @@ def upload_item():
 
         if not all([item_name, item_type, price, description, image]):
             flash('所有字段都是必需的', 'error')
-            return redirect(url_for('shop.upload_item'))
+            return redirect(url_for('web.shop.upload_item'))
 
         # 保存图片
-        image_path = save_image(image)
+        image_path = save_image(image, current_user.UserId)
 
         item = Item(
             Item_name=item_name,
@@ -95,17 +99,15 @@ def upload_item():
         db.session.commit()
 
         flash('商品上传成功', 'success')
-        return redirect(url_for('shop.index'))
+        return redirect(url_for('web.shop.index'))
 
     return render_template('shop/upload_item.html')
-
 
 @shop_bp.route('/cart')
 @login_required
 def cart():
     cart_items = CartItem.query.filter_by(user_id=current_user.UserId).all()
     return render_template('shop/cart.html', cart_items=cart_items)
-
 
 @shop_bp.route('/add_to_cart/<int:item_id>', methods=['POST'])
 @login_required
@@ -118,8 +120,7 @@ def add_to_cart(item_id):
         db.session.add(cart_item)
     db.session.commit()
     flash('已加入购物车', 'success')
-    return redirect(url_for('shop.cart'))
-
+    return redirect(url_for('web.shop.cart'))
 
 @shop_bp.route('/checkout', methods=['POST'])
 @login_required
@@ -127,7 +128,7 @@ def checkout():
     cart_items = CartItem.query.filter_by(user_id=current_user.UserId).all()
     if not cart_items:
         flash('购物车为空', 'error')
-        return redirect(url_for('shop.cart'))
+        return redirect(url_for('web.shop.cart'))
 
     # 创建订单
     order = Order(
@@ -146,8 +147,7 @@ def checkout():
     db.session.commit()
 
     # 跳转到支付页面
-    return redirect(url_for('shop.pay_order', order_id=order.OrderId))
-
+    return redirect(url_for('web.shop.pay_order', order_id=order.OrderId))
 
 @shop_bp.route('/order/<int:order_id>/pay')
 @login_required
@@ -157,8 +157,7 @@ def pay_order(order_id):
         abort(403)
 
     # 跳转到银行支付页面
-    return redirect(url_for('bank.pay', order_id=order.OrderId))
-
+    return redirect(url_for('web.bank.pay', order_id=order.OrderId))
 
 @shop_bp.route('/upload_item_image', methods=['POST'])
 @login_required
@@ -182,7 +181,7 @@ def profile():
     """
     bank_user_id = current_user.bank_user_id
     bank_user_info = None
-
+    # TODO: 完善二者的对接关系
     if bank_user_id:
         # 用户已绑定银行账户，可以通过银行API获取更多信息
         # 这里假设有一个函数 get_bank_user_info 用于获取银行用户信息

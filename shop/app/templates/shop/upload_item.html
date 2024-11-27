@@ -1,30 +1,31 @@
-<!-- templates/shop/upload_item.html -->
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="container mx-auto px-6 py-8">
-    <h2 class="text-2xl font-bold mb-6">上传商品</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <div class="mb-4">
-            <label class="block text-gray-700">商品名称</label>
-            <input type="text" name="item_name" class="w-full px-4 py-2 border rounded-md">
+<div class="container mx-auto px-6 py-4">
+    <h2 class="text-xl font-bold mb-4">上传商品</h2>
+    <form action="{{ url_for('web.shop.upload_item') }}" method="post" enctype="multipart/form-data" class="space-y-4">
+        {{ csrf_token() }}
+        <div>
+            <label for="item_name" class="block text-sm font-medium text-gray-700">商品名称</label>
+            <input type="text" id="item_name" name="item_name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
         </div>
-        <div class="mb-4">
-            <label class="block text-gray-700">商品种类</label>
-            <input type="text" name="item_type" class="w-full px-4 py-2 border rounded-md">
+        <div>
+            <label for="item_type" class="block text-sm font-medium text-gray-700">商品类型</label>
+            <input type="text" id="item_type" name="item_type" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
         </div>
-        <div class="mb-4">
-            <label class="block text-gray-700">价格</label>
-            <input type="text" name="price" class="w-full px-4 py-2 border rounded-md">
+        <div>
+            <label for="price" class="block text-sm font-medium text-gray-700">价格</label>
+            <input type="number" id="price" name="price" step="0.01" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
         </div>
-        <div class="mb-4">
-            <label class="block text-gray-700">描述</label>
-            <textarea name="description" class="w-full px-4 py-2 border rounded-md"></textarea>
+        <div>
+            <label for="description" class="block text-sm font-medium text-gray-700">描述</label>
+            <textarea id="description" name="description" rows="4" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"></textarea>
         </div>
-        <div class="mb-4">
-            <label class="block text-gray-700">商品图片</label>
-            <input type="file" name="image" class="w-full px-4 py-2 border rounded-md">
+        <div>
+            <label for="image" class="block text-sm font-medium text-gray-700">上传图片</label>
+            <input type="file" id="image" name="image" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
         </div>
-        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-md">上传</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">上传</button>
     </form>
 </div>
 {% endblock %}
