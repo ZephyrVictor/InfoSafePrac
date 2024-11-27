@@ -1,6 +1,8 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+import uuid
+
 from flasgger import Swagger
 from flask import Flask, url_for
 from flask_jwt_extended import JWTManager
@@ -68,19 +70,21 @@ def create_app():
     app.config['JWT_COOKIE_CSRF_PROTECT'] = False
     app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token'
     app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = 'csrftoken'  # 设置 CSRF 令牌的 Cookie 名称
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')  # Flask 用的密钥
+    app.config['CLIENT_ID'] = os.getenv('CLIENT_ID', str(uuid.uuid4()))  # 生成唯一的 client_id
+    app.config['CLIENT_SECRET'] = os.getenv('CLIENT_SECRET', os.urandom(24).hex())  # 生成随机的 client_secret
 
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):
         from app.models.BankUser import BankUser
-        from app.models.ShopUser import ShopUser
         identity = jwt_data["sub"]
         user_type = jwt_data.get("user_type")
         if user_type == 'bank':
             return BankUser.query.get(identity)
-        elif user_type == 'shop':
-            return ShopUser.query.get(identity)
         else:
             return None
+
+    # Flask-Login user loader
 
     register_blueprint(app)
 

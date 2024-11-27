@@ -1,6 +1,8 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
+import uuid
+
 from flasgger import Swagger
 from flask import Flask, url_for
 from flask_jwt_extended import JWTManager
@@ -72,6 +74,11 @@ def create_app():
     app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token'
     app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = 'csrf_token'  # 设置 CSRF 令牌的 Cookie 名称
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上传文件大小为 16MB
+    # app.config['CA_VERIFY_URL'] = "https://127.0.0.1:443/api/verify_certificate" # CA 验证 URL
+    # app.config['CA_CERT_PATH '] = "../certs/shop_application_cert.pem"
+
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')  # Flask 用的密钥
+
 
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):

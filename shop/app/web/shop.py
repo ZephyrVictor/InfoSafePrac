@@ -23,46 +23,6 @@ from ..utils.save_images import save_image
 shop_bp = Blueprint('shop', __name__)
 
 
-@shop_bp.route('/bind_bank_account', methods=['POST', 'GET'])
-@login_required
-def bind_bank_account():
-    bank = OAuth2Session(
-        client_id=current_app.config['BANK_OAUTH_CLIENT_ID'],
-        redirect_uri=url_for('shop.bind_bank_account_callback', _external=True)
-    )
-    authorization_url, state = bank.authorization_url(current_app.config['BANK_OAUTH_AUTHORIZE_URL'])
-
-    # 保存 state 到 session，以便回调时验证
-    session['oauth_state'] = state
-    return redirect(authorization_url)
-
-
-@shop_bp.route('/bind_bank_account/callback')
-@login_required
-def bind_bank_account_callback():
-    bank = OAuth2Session(
-        client_id=current_app.config['BANK_OAUTH_CLIENT_ID'],
-        state=session['oauth_state'],
-        redirect_uri=url_for('shop.bind_bank_account_callback', _external=True)
-    )
-    token = bank.fetch_token(
-        current_app.config['BANK_OAUTH_TOKEN_URL'],
-        client_secret=current_app.config['BANK_OAUTH_CLIENT_SECRET'],
-        authorization_response=request.url
-    )
-
-    # 获取用户信息
-    resp = bank.get(current_app.config['BANK_OAUTH_USERINFO_URL'])
-    userinfo = resp.json()
-
-    # 绑定银行用户ID到当前用户
-    current_user.bank_user_id = userinfo['user_id']
-    db.session.commit()
-
-    flash('银行账号绑定成功', 'success')
-    return redirect(url_for('web.shop.profile'))
-
-
 @shop_bp.route('/')
 def index():
     # 查询数据库中的所有商品
@@ -210,3 +170,36 @@ def profile():
         user=current_user,
         bank_user_info=bank_user_info
     )
+
+
+@shop_bp.route('/select_bank_card', methods=['GET', 'POST'])
+def select_bank_card():
+    bank_cards = session.get('bank_cards', [])
+    bank_user_id = session.get('bank_user_id')
+
+    if not bank_cards:
+        flash("未找到可用的银行卡", 'error')
+        return redirect(url_for('web.shop.profile'))
+
+    if request.method == 'POST':
+        selected_card_id = request.form.get('card_id')
+        if not selected_card_id:
+            flash("请选择一张银行卡", 'error')
+            return redirect(url_for('web.shop.select_bank_card'))
+
+        selected_card = next(
+            (card for card in bank_cards if str(card['card_id']) == selected_card_id), None
+        )
+        if not selected_card:
+            flash("无效的银行卡选择", 'error')
+            return redirect(url_for('web.shop.select_bank_card'))
+
+        # 绑定银行卡
+        current_user.bank_user_id = bank_user_id
+        current_user.bank_card_number = selected_card['card_number']
+        db.session.commit()
+
+        flash("银行卡绑定成功", 'success')
+        return redirect(url_for('web.shop.profile'))
+
+    return render_template('shop/select_bank_card.html', bank_cards=bank_cards)

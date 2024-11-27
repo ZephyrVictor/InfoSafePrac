@@ -1,0 +1,30 @@
+<!-- templates/oauth/authorize.html -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div class="bg-white shadow-md rounded-lg p-8 w-full max-w-md">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">授权请求</h1>
+        <p class="text-gray-600 text-center mb-4">
+            用户 <span class="font-semibold text-gray-800">{{ user.nickname }}</span>，您好！
+        </p>
+        <p class="text-gray-700">
+            应用 <span class="font-bold text-gray-800">{{ client.client_id }}</span> 请求绑定银行卡：
+        </p>
+        <ul class="list-disc list-inside text-gray-600 mt-4">
+            {% for s in scope.split(' ') %}
+            <li class="text-gray-700">{{ s }}</li>
+            {% endfor %}
+        </ul>
+        <form method="post" class="mt-6">
+            <div class="flex justify-between">
+                <button type="submit" name="confirm" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">
+                    同意
+                </button>
+                <button type="submit" name="deny" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow">
+                    拒绝
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

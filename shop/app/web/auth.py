@@ -4,10 +4,12 @@ __author__ = 'Zephyr369'
 import random
 import flasgger
 import jwt
+import requests
 from flasgger import swag_from
 from flask import request, jsonify, current_app, Blueprint, flash, url_for, render_template, session, make_response
 from flask_login import logout_user, login_required, login_user, current_user
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
+from urllib.parse import urlencode
 from werkzeug.exceptions import abort
 from werkzeug.utils import redirect
 
@@ -113,9 +115,97 @@ def login():
 
     return render_template('auth/login.html')
 
+
 @auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
     flash('您已成功退出登录', 'info')
     return redirect(url_for('web.shop.index'))
+
+
+@auth_bp.route('/bind_bank_card', methods=['GET'])
+@login_required
+def bind_bank_card():
+    bank_authorize_url = "https://127.0.0.1:5000/oauth/authorize"
+    client_id = current_app.config.get('CLIENT_ID')
+    redirect_uri = url_for('web.auth.bind_bank_card_callback', _external=True)
+
+    if not client_id:
+        flash('未注册 Bank 客户端，请联系管理员', 'error')
+        return redirect(url_for('web.shop.index'))
+
+    params = {
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "scope": "read write",
+        "state": "secure_random_string"
+    }
+
+    print("Params for Bank Authorization:", params)
+
+    url = f"{bank_authorize_url}?{urlencode(params)}"
+    return redirect(url)
+
+
+@auth_bp.route('/bind_bank_card/callback')
+@login_required
+def bind_bank_card_callback():
+    error = request.args.get('error')
+    if error:
+        flash(f"授权失败: {error}", 'error')
+        return redirect(url_for('web.shop.profile'))
+
+    code = request.args.get('code')
+    state = request.args.get('state')
+    if not code:
+        flash("未获得授权码", 'error')
+        return redirect(url_for('web.shop.profile'))
+
+    # 使用授权码获取访问令牌
+    token_url = 'https://127.0.0.1:5000/oauth/token'
+    data = {
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': url_for('web.auth.bind_bank_card_callback', _external=True),
+        'client_id': current_app.config.get('CLIENT_ID'),
+        'client_secret': current_app.config.get('CLIENT_SECRET')  # 商城在银行注册的 client_secret
+    }
+    response = requests.post(token_url, data=data, verify=False)  # TODO:// 当证书机构的装饰器写好之后 存在本地 可以用ssl认证了
+    if response.status_code != 200:
+        flash("获取访问令牌失败", 'error')
+        return redirect(url_for('web.shop.profile'))
+
+    token_data = response.json()
+    access_token = token_data['access_token']
+    # 用令牌拿到用户信息
+    user_info_url = 'https://127.0.0.1:5000/api/user_info'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(user_info_url, headers=headers, verify=False)
+
+    if response.status_code != 200:
+        flash("获取用户信息失败", 'error')
+        return redirect(url_for('web.shop.profile'))
+
+    user_info = response.json()
+    bank_user_id = user_info['user_id']
+    bank_cards = user_info['bank_cards']
+
+    if len(bank_cards) > 1:
+        # 如果有多张银行卡，让用户选择
+        session['bank_user_id'] = bank_user_id
+        session['bank_cards'] = bank_cards
+        return redirect(url_for('web.shop.select_bank_card'))
+    elif len(bank_cards) == 1:
+        # 如果只有一张银行卡，直接绑定
+        current_user.bank_user_id = bank_user_id
+        current_user.bank_card_number = bank_cards[0]['card_number']
+        db.session.commit()
+        flash("银行卡绑定成功", 'success')
+        return redirect(url_for('web.shop.profile'))
+    else:
+        flash("未找到可用的银行卡", 'error')
+        return redirect(url_for('web.shop.profile'))
