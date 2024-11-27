@@ -23,46 +23,6 @@ from ..utils.save_images import save_image
 shop_bp = Blueprint('shop', __name__)
 
 
-@shop_bp.route('/bind_bank_account', methods=['POST', 'GET'])
-@login_required
-def bind_bank_account():
-    bank = OAuth2Session(
-        client_id=current_app.config['BANK_OAUTH_CLIENT_ID'],
-        redirect_uri=url_for('shop.bind_bank_account_callback', _external=True)
-    )
-    authorization_url, state = bank.authorization_url(current_app.config['BANK_OAUTH_AUTHORIZE_URL'])
-
-    # 保存 state 到 session，以便回调时验证
-    session['oauth_state'] = state
-    return redirect(authorization_url)
-
-
-@shop_bp.route('/bind_bank_account/callback')
-@login_required
-def bind_bank_account_callback():
-    bank = OAuth2Session(
-        client_id=current_app.config['BANK_OAUTH_CLIENT_ID'],
-        state=session['oauth_state'],
-        redirect_uri=url_for('shop.bind_bank_account_callback', _external=True)
-    )
-    token = bank.fetch_token(
-        current_app.config['BANK_OAUTH_TOKEN_URL'],
-        client_secret=current_app.config['BANK_OAUTH_CLIENT_SECRET'],
-        authorization_response=request.url
-    )
-
-    # 获取用户信息
-    resp = bank.get(current_app.config['BANK_OAUTH_USERINFO_URL'])
-    userinfo = resp.json()
-
-    # 绑定银行用户ID到当前用户
-    current_user.bank_user_id = userinfo['user_id']
-    db.session.commit()
-
-    flash('银行账号绑定成功', 'success')
-    return redirect(url_for('web.shop.profile'))
-
-
 @shop_bp.route('/')
 def index():
     # 查询数据库中的所有商品

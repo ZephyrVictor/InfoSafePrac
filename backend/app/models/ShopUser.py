@@ -29,7 +29,7 @@ class ShopUser(UserMixin, Base):
     _captcha = Column("captcha", String(255), nullable=True)  # 验证码
     bank_user_id = Column(Integer, nullable=True)  # 关联的银行用户ID
     captcha_expiry = Column(DateTime, nullable=True)  # 验证码过期时间
-    stores = db.relationship('Store', back_populates='owner', lazy='dynamic')
+    items = db.relationship('Item', back_populates='owner', lazy='dynamic')
 
     # 验证码还是用哈希来保存好了
     @property

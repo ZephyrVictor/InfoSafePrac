@@ -22,7 +22,7 @@
     {% else %}
     <div class="mb-4">
         <p class="text-red-500">您尚未绑定银行账户。</p>
-        <a href="{{ url_for('web.shop.bind_bank_account') }}" class="bg-blue-500 text-white px-6 py-2 rounded-md">绑定银行账户</a>
+        <a href="{{ url_for('web.auth.bind_bank_card') }}" class="bg-blue-500 text-white px-6 py-2 rounded-md">绑定银行账户</a>
     </div>
     {% endif %}
 

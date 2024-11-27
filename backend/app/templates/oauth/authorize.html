@@ -1,0 +1,15 @@
+<!-- templates/oauth/authorize.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h1>授权请求</h1>
+<p>应用 <strong>{{ client.client_id }}</strong> 请求以下权限：</p>
+<ul>
+    {% for s in scope.split(' ') %}
+    <li>{{ s }}</li>
+    {% endfor %}
+</ul>
+<form method="post">
+    <button type="submit" name="confirm">同意</button>
+    <button type="submit" name="deny">拒绝</button>
+</form>
+{% endblock %}
