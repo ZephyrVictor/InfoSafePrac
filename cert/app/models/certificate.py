@@ -7,7 +7,7 @@ from datetime import datetime
 
 class Certificate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    common_name = db.Column(db.String(120), unique=True, nullable=False)
+    common_name = db.Column(db.String(120), unique=False, nullable=False)
     certificate_pem = db.Column(db.Text, nullable=False)
     private_key_pem = db.Column(db.Text, nullable=False)
     issue_date = db.Column(db.DateTime, default=datetime.utcnow)
