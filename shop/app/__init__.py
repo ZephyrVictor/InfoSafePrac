@@ -68,6 +68,7 @@ def create_app():
     app.config['JWT_COOKIE_CSRF_PROTECT'] = False
     app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token'
     app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = 'csrftoken'  # 设置 CSRF 令牌的 Cookie 名称
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上传文件大小为 16MB
 
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):
@@ -86,7 +87,7 @@ def create_app():
     migrate = Migrate(app, db)
 
     login_manager.init_app(app)
-    login_manager.login_view = 'web.auth.bank_login'
+    login_manager.login_view = 'web.auth.login'
     login_manager.login_message = '请先登录或注册'
     mail.init_app(app)
     limiter.init_app(app)

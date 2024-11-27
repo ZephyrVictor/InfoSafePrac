@@ -1,0 +1,31 @@
+<!-- templates/shop/profile.html -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto px-6 py-8">
+    <h2 class="text-2xl font-bold mb-6">个人信息</h2>
+
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold">昵称：</label>
+        <p>{{ user.nickname }}</p>
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold">邮箱：</label>
+        <p>{{ user.email }}</p>
+    </div>
+
+    {% if bank_user_info %}
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold">已绑定的银行账户：</label>
+        <p>银行用户 ID：{{ bank_user_info.user_id }}</p>
+        <!-- 如果有更多银行用户信息，可以继续展示 -->
+    </div>
+    {% else %}
+    <div class="mb-4">
+        <p class="text-red-500">您尚未绑定银行账户。</p>
+        <a href="{{ url_for('web.shop.bind_bank_account') }}" class="bg-blue-500 text-white px-6 py-2 rounded-md">绑定银行账户</a>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('web.shop.index') }}" class="mt-4 inline-block bg-gray-500 text-white px-6 py-2 rounded-md">返回商城</a>
+</div>
+{% endblock %}

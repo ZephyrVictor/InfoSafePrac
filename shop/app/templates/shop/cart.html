@@ -1,0 +1,41 @@
+<!-- templates/shop/cart.html -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto px-6 py-8">
+    <h2 class="text-2xl font-bold mb-6">购物车</h2>
+    {% if cart_items %}
+    <table class="w-full text-left">
+        <thead>
+            <tr>
+                <th>商品名称</th>
+                <th>价格</th>
+                <th>数量</th>
+                <th>小计</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set total = 0 %}
+            {% for item in cart_items %}
+            <tr>
+                <td>{{ item.item.Item_name }}</td>
+                <td>￥{{ item.item.price }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>￥{{ item.item.price * item.quantity }}</td>
+            </tr>
+            {% set total = total + (item.item.price * item.quantity) %}
+            {% endfor %}
+            <tr>
+                <td colspan="3" class="text-right font-bold">总计</td>
+                <td>￥{{ total }}</td>
+            </tr>
+        </tbody>
+    </table>
+    <form action="{{ url_for('web.shop.checkout') }}" method="POST" class="mt-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="bg-green-500 text-white px-6 py-2 rounded-md">结算</button>
+    </form>
+    {% else %}
+    <p>您的购物车为空。</p>
+    {% endif %}
+</div>
+{% endblock %}

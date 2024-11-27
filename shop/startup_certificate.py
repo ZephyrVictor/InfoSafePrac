@@ -1,5 +1,6 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
+
 # encoding=utf-8
 
 import os
@@ -11,6 +12,40 @@ from cryptography.hazmat.primitives import serialization
 # CA API 地址
 CA_URL = 'https://127.0.0.1:443/api'
 CA_CERT_PATH = os.path.join(os.getcwd(), 'ca_cert.pem')  # 动态获取 CA 证书路径
+CA_VERIFY_URL = f"{CA_URL}/api/verify_certificate"
+
+
+def is_certificate_valid_and_revoked(cert_path, common_name):
+    """
+    验证本地证书是否有效且未被吊销。
+
+    参数:
+    - cert_path: 本地证书路径
+    - common_name: 证书的通用名称 (Common Name)
+
+    返回:
+    - bool: True 表示证书有效且未被吊销，False 表示证书无效或已被吊销。
+    """
+    # 本地验证证书是否存在且未过期
+    if not is_certificate_valid(cert_path):
+        return False
+
+    # 请求 CA 服务器检查证书是否被吊销
+    try:
+        response = requests.post(CA_VERIFY_URL, json={'common_name': common_name}, verify=CA_CERT_PATH)
+        if response.status_code == 200:
+            revoked = response.json().get('revoked', False)
+            if revoked:
+                print(f"证书已被吊销: {common_name}")
+                return False
+            print(f"证书未被吊销: {common_name}")
+            return True
+        else:
+            print(f"CA 服务器返回错误: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        print(f"请求 CA 服务器失败: {e}")
+        return False
 
 
 def is_certificate_valid(cert_path):
@@ -32,6 +67,27 @@ def is_certificate_valid(cert_path):
     except Exception as e:
         print(f"证书验证失败: {e}")
         return False
+
+
+def ensure_valid_certificate(cert_path, key_path, common_name):
+    """
+    确保本地证书有效。如果无效或被吊销，则重新申请证书。
+
+    参数:
+    - cert_path: 本地证书路径
+    - key_path: 本地私钥路径
+    - common_name: 证书的通用名称 (Common Name)
+
+    返回:
+    - (cert_path, key_path): 返回证书和私钥路径
+    """
+    if not is_certificate_valid_and_revoked(cert_path, common_name):
+        print(f"证书无效或被吊销，为 {common_name} 重新申请证书...")
+        cert_path, key_path = request_new_certificate(common_name)
+    else:
+        print(f"证书有效: {common_name}")
+
+    return cert_path, key_path
 
 
 def request_new_certificate(common_name):

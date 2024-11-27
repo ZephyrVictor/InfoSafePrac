@@ -36,7 +36,7 @@ class CaptchaManager:
         # 如果是 bank_card 对象，查找相关的用户来获取邮箱
         if self.bank_card:
             # 查找与 bank_card 关联的 BankUser（假设通过 user_id 查找）
-            user = BankUser.query.filter_by(UserId=self.bank_card.user_id).first()
+            user = ShopUser.query.filter_by(UserId=self.bank_card.user_id).first()
             if not user or not user.email:
                 raise ValueError("无法找到用户或用户的邮箱")
             email = user.email

@@ -17,7 +17,6 @@ from app import login_manager, logger
 from app.models.base import Base, db
 
 
-# TODO: 将ShopUser继承于AbstractUser
 class ShopUser(UserMixin, Base):
     __tablename__ = 'shop_user'
 
@@ -31,6 +30,12 @@ class ShopUser(UserMixin, Base):
     captcha_expiry = Column(DateTime, nullable=True)  # 验证码过期时间
     items = db.relationship('Item', back_populates='owner', lazy='dynamic')
     is_active = Column(Boolean, default=False)  # 新增字段，表示用户是否已激活
+
+    def __init__(self, nickname, email, password, isAdmin=False):
+        self.nickname = nickname
+        self.email = email
+        self.password = password  # 触发 password setter 加密
+        self.isAdmin = isAdmin
 
     # 验证码还是用哈希来保存好了
     @property
@@ -119,6 +124,9 @@ class ShopUser(UserMixin, Base):
             logger.error(f'JWT解析失败: {e}')
             return None
 
+    def get_id(self):
+        """返回用户的唯一标识符，必须为字符串类型"""
+        return str(self.UserId)
 
 @login_manager.user_loader
 def load_user(user_id):
