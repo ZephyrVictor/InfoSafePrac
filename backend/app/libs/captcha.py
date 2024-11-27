@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from flask import current_app
 from app.libs.email import send_mail
 from app.models.BankUser import BankUser
-from app.models.ShopUser import ShopUser
 from app import db, logger
 
 

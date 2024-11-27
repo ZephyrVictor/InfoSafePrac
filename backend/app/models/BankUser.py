@@ -6,15 +6,15 @@ __author__ = 'Zephyr369'
 # import datetime
 import random
 from datetime import datetime, timedelta
-from flask_login import UserMixin
 import jwt
 from flask import current_app
 from flask_jwt_extended import create_access_token, decode_token
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from app import logger
+from app import logger, login_manager
 from app.models.base import Base, db
+
 
 # TODO: 将BankUser继承于AbstractUser
 class BankUser(Base):
@@ -28,8 +28,8 @@ class BankUser(Base):
     _payPassword = Column('pay_password', String(255), nullable=False)  # 支付密码
     isAdmin = Column(Boolean, default=False)  # 是否为管理员
     IdCardNumber = Column(String(18), nullable=True)  # 身份证号
-    _captcha = Column("captcha",String(255), nullable=True)  # 验证码
-    captcha_expiry = Column(DateTime, nullable=True) # 验证码过期时间
+    _captcha = Column("captcha", String(255), nullable=True)  # 验证码
+    captcha_expiry = Column(DateTime, nullable=True)  # 验证码过期时间
     bank_cards = db.relationship('BankCard', back_populates='user', lazy='dynamic')
 
     @property
@@ -104,7 +104,7 @@ class BankUser(Base):
         return create_access_token(
             identity=user.UserId,
             expires_delta=expires,
-            additional_claims={'user_type': 'bank'} # 银行用户
+            additional_claims={'user_type': 'bank'}  # 银行用户
         )
 
     def generate_token(self, expiration=600):
@@ -131,3 +131,11 @@ class BankUser(Base):
 
     def get_name(self):
         return self.nickname
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        """
+        Flask-Login 使用的用户加载回调函数。
+        根据用户 ID 从数据库加载用户。
+        """
+        return BankUser.query.get(int(user_id))

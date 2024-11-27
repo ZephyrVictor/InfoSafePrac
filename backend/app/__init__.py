@@ -72,15 +72,14 @@ def create_app():
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):
         from app.models.BankUser import BankUser
-        from app.models.ShopUser import ShopUser
         identity = jwt_data["sub"]
         user_type = jwt_data.get("user_type")
         if user_type == 'bank':
             return BankUser.query.get(identity)
-        elif user_type == 'shop':
-            return ShopUser.query.get(identity)
         else:
             return None
+
+    # Flask-Login user loader
 
     register_blueprint(app)
 

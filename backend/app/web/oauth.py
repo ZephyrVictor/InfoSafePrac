@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 # app/web/oauth.py
 
 from flask import Blueprint, request, redirect, url_for, render_template, session, flash, jsonify
+from flask_jwt_extended import jwt_required
 from flask_login import current_user, login_required
 from werkzeug.security import gen_salt
 
@@ -22,7 +23,7 @@ oauth_bp = Blueprint('oauth', __name__)
 
 
 @oauth_bp.route('/oauth/authorize', methods=['GET', 'POST'])
-@login_required
+@jwt_required()
 def authorize():
     client_id = request.args.get('client_id')
     redirect_uri = request.args.get('redirect_uri')
