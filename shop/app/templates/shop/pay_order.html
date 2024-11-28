@@ -1,0 +1,31 @@
+<!-- templates/shop/pay_order.html -->
+{% extends 'base.html' %}
+{% block title %}订单支付{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h2 class="text-3xl font-bold mb-6">订单支付</h2>
+
+    <div class="bg-white shadow-lg rounded-lg p-6">
+        <div class="mb-4">
+            <h3 class="text-xl font-semibold">订单详情</h3>
+            <p><strong>订单号：</strong>{{ order.OrderId }}</p>
+            <p><strong>买家：</strong>{{ order.buyer.nickname }}</p>
+            <p><strong>卖家：</strong>{{ order.seller.nickname }}</p>
+            <p><strong>订单金额：</strong>￥{{ order.amount }}</p>
+        </div>
+
+        {% if current_user.is_authenticated %}
+        <form method="post" class="space-y-4">
+            <div>
+                <label for="pay_password" class="block text-lg font-semibold">支付密码</label>
+                <input type="password" id="pay_password" name="pay_password" class="w-full p-3 border border-gray-300 rounded" required>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600">去支付</button>
+        </form>
+        {% else %}
+        <p class="text-red-500">请先登录以进行支付。</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

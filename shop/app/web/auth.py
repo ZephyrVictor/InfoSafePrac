@@ -21,6 +21,7 @@ from ..models import Order
 from ..models.CarItem import CartItem
 from ..models.ShopUser import ShopUser
 from ..models.base import db
+from ..utils.decorator import  verify_bank_certificate
 from ..utils.verify_email import is_valid_email
 
 auth_bp = Blueprint('auth', __name__)
@@ -151,7 +152,9 @@ def bind_bank_card():
 
 @auth_bp.route('/bind_bank_card/callback')
 @login_required
-def bind_bank_card_callback():
+@verify_bank_certificate
+def bind_bank_card_callback(*args, **kwargs):
+    verify = kwargs.get('verify', True)  # 将verify的控制权给decorator
     error = request.args.get('error')
     if error:
         flash(f"授权失败: {error}", 'error')
@@ -172,7 +175,7 @@ def bind_bank_card_callback():
         'client_id': current_app.config.get('CLIENT_ID'),
         'client_secret': current_app.config.get('CLIENT_SECRET')  # 商城在银行注册的 client_secret
     }
-    response = requests.post(token_url, data=data, verify=False)  # TODO:// 当证书机构的装饰器写好之后 存在本地 可以用ssl认证了
+    response = requests.post(token_url, data=data,verify=verify)  # TODO:// 有待于验证
     if response.status_code != 200:
         flash("获取访问令牌失败", 'error')
         return redirect(url_for('web.shop.profile'))
@@ -184,7 +187,7 @@ def bind_bank_card_callback():
     headers = {
         'Authorization': f'Bearer {access_token}'
     }
-    response = requests.get(user_info_url, headers=headers, verify=False)
+    response = requests.get(user_info_url, headers=headers, verify=verify)
 
     if response.status_code != 200:
         flash("获取用户信息失败", 'error')

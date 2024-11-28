@@ -9,22 +9,17 @@ import os
 
 from startup_certificate import ensure_valid_certificate
 
-# 应用程序的 Common Name
 common_name = "bank_application"
 
-# 初始化证书
 cert_path, key_path = ensure_valid_certificate(common_name)
 
-# 创建 Flask 应用
 app = create_app()
 
-# 运行 Flask 应用
 if __name__ == '__main__':
     if not os.path.exists(cert_path) or not os.path.exists(key_path):
         print(f"证书或私钥文件缺失: {cert_path}, {key_path}")
         exit(1)
 
-    # 配置双向 SSL
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(certfile=cert_path, keyfile=key_path)  # 加载服务端证书和私钥
     context.load_verify_locations(cafile=cert_path)  # CA 根证书

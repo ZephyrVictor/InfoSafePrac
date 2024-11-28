@@ -1,0 +1,27 @@
+<!-- templates/bank/verify_order_captcha.html -->
+{% extends 'base.html' %}
+{% block title %}验证码验证{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h2 class="text-3xl font-bold mb-6">支付验证码验证</h2>
+
+    <div class="bg-white shadow-lg rounded-lg p-6">
+        <div class="mb-4">
+            <h3 class="text-xl font-semibold">订单详情</h3>
+            <p><strong>订单号：</strong>{{ order_id }}</p>
+            <p><strong>买家：</strong>{{ buyer_id }}</p>
+            <p><strong>卖家：</strong>{{ seller_id }}</p>
+            <p><strong>支付金额：</strong>￥{{ amount }}</p>
+        </div>
+
+        <form method="post" class="space-y-4">
+            <div>
+                <label for="captcha" class="block text-lg font-semibold">验证码</label>
+                <input type="text" id="captcha" name="captcha" class="w-full p-3 border border-gray-300 rounded" required>
+            </div>
+
+            <button type="submit" class="w-full bg-green-500 text-white py-3 rounded-md hover:bg-green-600">提交验证码</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

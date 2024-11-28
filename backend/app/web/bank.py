@@ -3,6 +3,7 @@ __author__ = 'Zephyr369'
 
 import base64
 
+import requests
 from Crypto.Random import get_random_bytes
 from flasgger import swag_from
 from flask import Blueprint, request, jsonify, url_for, flash, render_template, session, current_app
@@ -15,6 +16,7 @@ from app.libs.email import send_mail
 from app import db
 from ..libs.captcha import CaptchaManager
 from ..models.BankUser import BankUser
+from ..models.Transaction import Transaction
 from ..utils import Logger
 from Crypto.Cipher import AES
 from urllib.parse import quote, unquote
@@ -142,6 +144,7 @@ def deposit(card_id):
 
     return render_template('bank/deposit.html', card=bank_card)
 
+
 @bank_bp.route('/confirm_deposit/<int:card_id>', methods=['GET', 'POST'])
 @jwt_required()
 def confirm_deposit(card_id):
@@ -179,7 +182,6 @@ def confirm_deposit(card_id):
         return redirect(url_for('web.bank.dashboard'))
 
     return render_template('bank/confirm_deposit.html', card=bank_card)
-
 
 
 @bank_bp.route('/withdraw', methods=['POST'])
@@ -249,3 +251,167 @@ def dashboard():
     user = BankUser.query.filter_by(UserId=user_id).first()
     bank_cards = BankCard.query.filter_by(user_id=user_id, is_active=True).all()
     return render_template("bank/dashboard.html", current_user=user, bank_cards=bank_cards)
+
+
+@bank_bp.route('/transfer', methods=['GET', 'POST'])
+@jwt_required()
+def transfer():
+    user_id = get_jwt_identity()  # 获取当前用户ID
+    user = BankUser.query.get(user_id)  # 获取当前用户对象
+    if request.method == 'POST':
+        recipient_card_number = request.form['recipient_card_number']  # 收款卡号
+        sender_card_number = request.form['sender_card_number']  # 付款卡号
+        amount = float(request.form['amount'])  # 转账金额
+        pay_password = request.form['pay_password']  # 支付密码
+        captcha = request.form['captcha']  # 验证码
+
+        if not user.verify_payPassword(pay_password):
+            flash('支付密码错误', 'error')
+            return redirect(url_for('web.bank.transfer'))
+
+        captcha_manager = CaptchaManager(user)
+        if not captcha_manager.verify_captcha(captcha):
+            flash('验证码错误或已过期', 'error')
+            return redirect(url_for('web.bank.transfer'))
+
+        recipient_card = BankCard.query.filter_by(card_number=recipient_card_number).first()
+        if not recipient_card:
+            flash('收款卡号不存在', 'error')
+            return redirect(url_for('web.bank.transfer'))
+
+        sender_card = BankCard.query.filter_by(user_id=user.UserId, card_number=sender_card_number).first()
+        if sender_card.balance < amount:
+            flash('余额不足', 'error')
+            return redirect(url_for('web.bank.transfer'))
+
+        if sender_card.withdraw(amount):
+            recipient_card.deposit(amount)
+            db.session.commit()
+
+            transaction = Transaction(sender_id=user.UserId, recipient_id=recipient_card.user_id,
+                                      amount=amount, transaction_type='TRANSFER', status='SUCCESS')
+            db.session.add(transaction)
+            db.session.commit()
+
+            flash('转账成功', 'success')
+            return redirect(url_for('web.bank.transaction_history'))
+
+    return render_template('bank/transfer.html', user=user)
+
+
+@bank_bp.route('/send_captcha', methods=['POST'])
+@jwt_required()
+def send_captcha():
+    user_id = get_jwt_identity()
+    user = BankUser.query.get(user_id)
+
+    captcha_manager = CaptchaManager(user)
+    captcha_manager.generate_captcha()
+    captcha_manager.send_captcha_email('转账验证码', 'email/transfer_captcha.html')
+
+    flash('验证码已发送到您的邮箱，请查收', 'info')
+    return redirect(url_for('web.bank.transfer'))
+
+
+@bank_bp.route('/verify_captcha', methods=['POST'])
+@jwt_required()
+def verify_captcha():
+    user_id = get_jwt_identity()
+    user = BankUser.query.get(user_id)
+
+    captcha = request.form['captcha']
+    captcha_manager = CaptchaManager(user)
+
+    if captcha_manager.verify_captcha(captcha):
+        flash('验证码验证成功', 'success')
+    else:
+        flash('验证码错误或已过期', 'error')
+
+    return redirect(url_for('web.bank.transfer'))
+
+
+@bank_bp.route('/transaction_history', methods=['GET'])
+@jwt_required()
+def transaction_history():
+    user_id = get_jwt_identity()
+    transactions = Transaction.query.filter(
+        (Transaction.sender_id == user_id) | (Transaction.recipient_id == user_id)
+    ).order_by(Transaction.timestamp.desc()).all()
+
+    return render_template('bank/transaction_history.html', transactions=transactions)
+
+
+@bank_bp.route('/pay', methods=['POST'])
+@jwt_required()
+def pay():
+    # 获取当前银行用户
+    user_id = get_jwt_identity()
+    user = BankUser.query.get(user_id)
+
+    # 获取从商店端传递的数据
+    order_id = request.form['order_id']
+    buyer_id = request.form['buyer_id']
+    seller_id = request.form['seller_id']
+    amount = float(request.form['amount'])  # 支付金额
+
+    # 校验支付密码
+    pay_password = request.form['pay_password']
+    if not user.verify_payPassword(pay_password):
+        flash('支付密码错误', 'error')
+        return redirect(url_for('web.bank.transfer'))
+
+    # 发送验证码
+    captcha_manager = CaptchaManager(user)
+    captcha_manager.generate_captcha()
+    captcha_manager.send_captcha_email('支付验证码', 'email/pay_captcha.html')
+
+    flash('验证码已发送到您的邮箱，请查收', 'info')
+    return render_template('bank/verify_captcha.html', order_id=order_id, buyer_id=buyer_id, seller_id=seller_id,
+                           amount=amount)
+@bank_bp.route('/verify_order_captcha', methods=['POST'])
+@jwt_required()
+def verify_order_captcha():
+    user_id = get_jwt_identity()
+    user = BankUser.query.get(user_id)
+
+    captcha = request.form['captcha']
+    order_id = request.form['order_id']
+    buyer_id = request.form['buyer_id']
+    seller_id = request.form['seller_id']
+    amount = float(request.form['amount'])
+
+    # 验证验证码
+    captcha_manager = CaptchaManager(user)
+    if captcha_manager.verify_captcha(captcha):
+        # 获取付款银行卡
+        sender_card = BankCard.query.filter_by(user_id=user.UserId).first()  # 假设用户有一张默认卡
+        if sender_card.balance < amount:
+            flash('余额不足', 'error')
+            return redirect(url_for('web.bank.transfer'))
+
+        # 获取卖家银行用户ID
+        recipient_card = BankCard.query.filter_by(user_id=seller_id).first()
+
+        # 执行转账
+        if sender_card.withdraw(amount):
+            recipient_card.deposit(amount)
+            db.session.commit()
+
+            # 记录交易
+            transaction = Transaction(
+                sender_id=user.UserId,
+                recipient_id=recipient_card.user_id,
+                amount=amount,
+                transaction_type=f"Order-{order_id}",  # 记录订单ID
+                status='SUCCESS'
+            )
+            db.session.add(transaction)
+            db.session.commit()
+
+            flash('支付成功', 'success')
+            return redirect(url_for('web.bank.transaction_history'))
+
+    else:
+        flash('验证码错误或已过期', 'error')
+
+    return redirect(url_for('web.bank.transfer'))

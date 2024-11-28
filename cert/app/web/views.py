@@ -99,3 +99,6 @@ def api_verify_certificate():
 
     revoked = is_certificate_revoked(common_name)
     return jsonify({'revoked': revoked}), 200
+
+
+

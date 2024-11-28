@@ -1,0 +1,31 @@
+<!-- templates/bank/pay.html -->
+{% extends 'base.html' %}
+{% block title %}支付页面{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h2 class="text-3xl font-bold mb-6">支付订单</h2>
+
+    <div class="bg-white shadow-lg rounded-lg p-6">
+        <div class="mb-4">
+            <h3 class="text-xl font-semibold">订单详情</h3>
+            <p><strong>订单号：</strong>{{ order_id }}</p>
+            <p><strong>买家：</strong>{{ buyer_id }}</p>
+            <p><strong>卖家：</strong>{{ seller_id }}</p>
+            <p><strong>支付金额：</strong>￥{{ amount }}</p>
+        </div>
+
+        <div class="mb-4">
+            <p>我们已经向您的邮箱发送了一条验证码，请输入验证码以完成支付。</p>
+        </div>
+
+        <form action="{{ url_for('web.bank.verify_order_captcha') }}" method="post" class="space-y-4">
+            <div>
+                <label for="captcha" class="block text-lg font-semibold">验证码</label>
+                <input type="text" id="captcha" name="captcha" class="w-full p-3 border border-gray-300 rounded" required>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600">提交验证码</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

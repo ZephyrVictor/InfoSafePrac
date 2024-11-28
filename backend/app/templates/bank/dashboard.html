@@ -6,8 +6,13 @@
     <!-- 将按钮放在右上角 -->
     <div class="flex space-x-4">
         <a href="{{ url_for('web.auth.set_paypassword') }}" class="bg-blue-500 text-white px-4 py-2 rounded">设置支付密码</a>
-        <a href="{{ url_for('web.auth.logout') }}" class="bg-red-500 text-white px-4 py-2 rounded">退出登录</a>
     </div>
+</div>
+
+<!-- 新增按钮入口 -->
+<div class="mb-4">
+    <a href="{{ url_for('web.bank.transfer') }}" class="bg-blue-500 text-white px-4 py-2 rounded mb-2 inline-block">转账</a>
+    <a href="{{ url_for('web.bank.transaction_history') }}" class="bg-green-500 text-white px-4 py-2 rounded mb-2 inline-block">交易历史</a>
 </div>
 
 <a href="{{ url_for('web.bank.apply_bank_card') }}" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 inline-block">申请新银行卡</a>

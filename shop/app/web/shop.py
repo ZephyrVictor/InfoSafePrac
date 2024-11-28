@@ -4,7 +4,9 @@ __author__ = 'Zephyr369'
 import datetime
 import glob
 import os
+from uuid import uuid4
 
+import requests
 from flask import request, jsonify, Blueprint, render_template, current_app, url_for, session, flash
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 from flask_login import login_required, current_user
@@ -16,6 +18,7 @@ from werkzeug.utils import redirect
 from app.models.item import Item
 from ..models.CarItem import CartItem
 from ..models.Order import Order
+from ..models.ShopUser import ShopUser
 from ..models.base import db
 from ..utils.create_order import generate_order_number, calculate_total
 from ..utils.save_images import save_image
@@ -25,17 +28,21 @@ shop_bp = Blueprint('shop', __name__)
 
 @shop_bp.route('/')
 def index():
-    # 查询数据库中的所有商品
     items = Item.query.all()
-
-    # 渲染主界面，无论是否登录，数据来源一致
     return render_template('shop_index.html', items=items)
 
 
 @shop_bp.route('/item/<int:item_id>', endpoint='view_item')
 def view_item(item_id):
+    item = Item.query.filter_by(ItemId=item_id).first()
+
+    if not item:
+        flash('商品不存在', 'error')
+        return redirect(url_for('shop.index'))
+
     cart_items = CartItem.query.options(joinedload(CartItem.item)).filter_by(user_id=current_user.UserId).all()
-    return render_template('shop/view_cart.html', cart_items=cart_items)
+
+    return render_template('shop/view_item.html', item=item)
 
 
 @shop_bp.route('/upload_item', methods=['GET', 'POST'])
@@ -113,24 +120,51 @@ def checkout():
     db.session.add(order)
     db.session.commit()
 
-    # 清空购物车
-    for item in cart_items:
-        db.session.delete(item)
-    db.session.commit()
+    # 获取卖家银行用户ID
+    seller_id = cart_items[0].item.owner_id
+    seller = ShopUser.query.get(seller_id)
+    bank_user_id = seller.bank_user_id  # 获取卖家的 bank_user_id
 
-    # 跳转到支付页面
-    return redirect(url_for('web.shop.pay_order', order_id=order.OrderId))
+    if not bank_user_id:
+        flash('商家没有绑定银行账户', 'error')
+        return redirect(url_for('web.shop.cart'))
+
+    # 跳转到银行支付页面
+    return redirect(url_for('web.bank.pay', order_id=order.OrderId, bank_user_id=bank_user_id))
 
 
-@shop_bp.route('/order/<int:order_id>/pay')
+# 支付订单
+@shop_bp.route('/order/<int:order_id>/pay', methods=['GET', 'POST'])
 @login_required
 def pay_order(order_id):
     order = Order.query.get_or_404(order_id)
     if order.buyer_id != current_user.UserId:
         abort(403)
 
-    # 跳转到银行支付页面
-    return redirect(url_for('web.bank.pay', order_id=order.OrderId))
+    if request.method == 'POST':
+        buyer_id = order.buyer_id
+        seller_id = order.seller_id
+        amount = order.amount
+        order_id = order.OrderId
+
+        bank_url = 'http://127.0.0.1:5000/web/bank/pay'
+        data = {
+            'order_id': order_id,
+            'buyer_id': buyer_id,
+            'seller_id': seller_id,
+            'amount': amount
+        }
+
+        response = requests.post(bank_url, data=data)
+
+        if response.status_code == 200:
+            flash('支付成功', 'success')
+            return redirect(url_for('web.shop.order_detail', order_id=order.OrderId))
+        else:
+            flash('支付失败', 'error')
+            return redirect(url_for('web.shop.cart'))
+
+    return render_template('shop/pay_order.html', order=order)
 
 
 @shop_bp.route('/upload_item_image', methods=['POST'])

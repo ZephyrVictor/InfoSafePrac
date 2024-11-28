@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}转账{% endblock %}
+{% block content %}
+<div class="container mx-auto p-4">
+    <h2 class="text-2xl font-bold mb-4">转账</h2>
+
+    <form action="{{ url_for('web.bank.transfer') }}" method="POST">
+        <div class="mb-4">
+            <label for="sender_card_number" class="block text-sm font-medium">付款卡号</label>
+            <input type="text" id="sender_card_number" name="sender_card_number" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="recipient_card_number" class="block text-sm font-medium">收款卡号</label>
+            <input type="text" id="recipient_card_number" name="recipient_card_number" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="amount" class="block text-sm font-medium">转账金额</label>
+            <input type="number" id="amount" name="amount" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="pay_password" class="block text-sm font-medium">支付密码</label>
+            <input type="password" id="pay_password" name="pay_password" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="captcha" class="block text-sm font-medium">验证码</label>
+            <input type="text" id="captcha" name="captcha" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            <button type="button" class="mt-2 text-blue-500" id="send-captcha">发送验证码</button>
+        </div>
+
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md">转账</button>
+    </form>
+</div>
+
+<script>
+    document.getElementById('send-captcha').addEventListener('click', function() {
+        fetch('{{ url_for("web.bank.send_captcha") }}', {
+            method: 'POST',
+        }).then(response => response.json()).then(data => {
+            if (data.success) {
+                alert('验证码已发送');
+            } else {
+                alert('发送失败');
+            }
+        });
+    });
+</script>
+{% endblock %}

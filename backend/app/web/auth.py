@@ -89,16 +89,16 @@ def bank_login():
             'access_token',
             access_token,
             httponly=True,
-            secure=False,  # 如果使用 HTTPS，请设为 True
+            secure=True,
             samesite='Lax',
             max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24
         )
-        csrf_token = create_access_token(identity=user.UserId)  # 生成 CSRF token
+        csrf_token = create_access_token(identity=user.UserId)
         response.set_cookie(
             'csrftoken',
             csrf_token,
-            httponly=False,  # CSRF token 需要允许前端读取
-            secure=True,  # 如果使用 HTTPS，请设为 True
+            httponly=False,
+            secure=True,
             samesite='Lax',
             max_age=60 * 60 * 24 * 7 if remember else 60 * 60 * 24
         )
@@ -225,17 +225,15 @@ def bank_reset_password():
     return render_template('auth/bank_reset_password.html', email=email)
 
 
-@auth_bp.route('/bank/logout', methods=['POST'])
+@auth_bp.route('/bank/logout', methods=['GET'])
 @jwt_required()
 def logout():
-    # 创建响应对象
     response = make_response(redirect(url_for('web.auth.bank_login')))
 
-    # 清除访问令牌和 CSRF 令牌的 Cookie
     response.delete_cookie('access_token')  # 清除访问令牌的Cookie
     response.delete_cookie('csrftoken')  # 清除CSRF令牌的Cookie
+    response.delete_cookie("session")  # 清除session cookie
 
-    # 添加闪现消息
     flash('您已成功退出登录', 'info')
 
     return response
