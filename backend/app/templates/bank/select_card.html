@@ -1,0 +1,23 @@
+<!-- bank/select_card.html -->
+{% extends 'base.html' %}
+{% block title %}选择支付银行卡{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h2 class="text-2xl font-bold mb-4">选择支付银行卡</h2>
+    <form action="{{ url_for('web.bank.pay', payment_id=request.args.get('payment_id')) }}" method="post">
+        <div class="mb-4">
+            <p>支付总金额：<strong>￥{{ total_amount }}</strong></p>
+        </div>
+        <div class="mb-4">
+            <label class="block text-lg font-semibold mb-2">选择银行卡：</label>
+            {% for card in cards %}
+            <div class="mb-2">
+                <input type="radio" id="card{{ card.CardId }}" name="card_id" value="{{ card.CardId }}" required>
+                <label for="card{{ card.CardId }}">{{ card.card_number }} - 余额：￥{{ card.balance }}</label>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-md">确认</button>
+    </form>
+</div>
+{% endblock %}

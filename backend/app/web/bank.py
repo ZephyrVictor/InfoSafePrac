@@ -2,6 +2,9 @@
 __author__ = 'Zephyr369'
 
 import base64
+import json
+import uuid
+from datetime import datetime, timedelta
 
 import requests
 from Crypto.Random import get_random_bytes
@@ -16,6 +19,7 @@ from app.libs.email import send_mail
 from app import db
 from ..libs.captcha import CaptchaManager
 from ..models.BankUser import BankUser
+from ..models.PaymentCache import PaymentCache
 from ..models.Transaction import Transaction
 from ..utils import Logger
 from Crypto.Cipher import AES
@@ -330,6 +334,33 @@ def verify_captcha():
     return redirect(url_for('web.bank.transfer'))
 
 
+@bank_bp.route('/create_payment', methods=['POST'])
+def create_payment():
+    data = request.get_json()
+    buyer_bank_user_id = data.get('buyer_bank_user_id')
+    seller_payments = data.get('seller_payments')  # Dict of seller_bank_user_id: amount
+    total_amount = data.get('total_amount')
+    order_ids = data.get('order_ids')  # List of order numbers
+
+    # Generate a unique payment ID
+    payment_id = str(uuid.uuid4())
+
+    payment_data = PaymentCache(
+        payment_id=payment_id,
+        buyer_bank_user_id=buyer_bank_user_id,
+        seller_payments=json.dumps(seller_payments),
+        total_amount=total_amount,
+        order_ids=json.dumps(order_ids),
+        expires_at=datetime.utcnow() + timedelta(minutes=10)  # 设置 10 分钟有效期
+    )
+    db.session.add(payment_data)
+    db.session.commit()
+    # Store payment details in server-side session or database
+
+    # Return the payment ID to the shop
+    return jsonify({'payment_id': payment_id}), 200
+
+
 @bank_bp.route('/transaction_history', methods=['GET'])
 @jwt_required()
 def transaction_history():
@@ -341,77 +372,183 @@ def transaction_history():
     return render_template('bank/transaction_history.html', transactions=transactions)
 
 
-@bank_bp.route('/pay', methods=['POST'])
-@jwt_required()
+@bank_bp.route('/pay', methods=['GET', 'POST'])
 def pay():
-    # 获取当前银行用户
-    user_id = get_jwt_identity()
-    user = BankUser.query.get(user_id)
+    payment_id = request.args.get('payment_id') or request.cookies.get('payment_id')
 
-    # 获取从商店端传递的数据
-    order_id = request.form['order_id']
-    buyer_id = request.form['buyer_id']
-    seller_id = request.form['seller_id']
-    amount = float(request.form['amount'])  # 支付金额
+    if not payment_id:
+        flash('支付请求无效', 'error')
+        return redirect(url_for('web.bank.dashboard'))
 
-    # 校验支付密码
-    pay_password = request.form['pay_password']
-    if not user.verify_payPassword(pay_password):
-        flash('支付密码错误', 'error')
-        return redirect(url_for('web.bank.transfer'))
+    # 查询数据库中的支付数据
+    payment_data = PaymentCache.query.filter_by(payment_id=payment_id).first()
+    if not payment_data:
+        flash('无法获取到支付订单信息', 'error')
+        return redirect(url_for('web.bank.dashboard'))
+    payment_dict = payment_data.to_dict()
+    buyer_bank_user_id = payment_dict.get('buyer_bank_user_id')
+    # Retrieve buyer's bank user
+    user = BankUser.query.get(buyer_bank_user_id)
+    if not user:
+        flash('买家银行账户不存在', 'error')
+        return redirect(url_for('web.bank.dashboard'))
 
-    # 发送验证码
-    captcha_manager = CaptchaManager(user)
-    captcha_manager.generate_captcha()
-    captcha_manager.send_captcha_email('支付验证码', 'email/pay_captcha.html')
+    # Store payment ID in session for later use
+    session['current_payment_id'] = payment_id
 
-    flash('验证码已发送到您的邮箱，请查收', 'info')
-    return render_template('bank/verify_captcha.html', order_id=order_id, buyer_id=buyer_id, seller_id=seller_id,
-                           amount=amount)
+    if request.method == 'POST':
+        # Handle form submission
+        selected_card_id = request.form.get('card_id')
+        selected_card = BankCard.query.filter_by(CardId=selected_card_id, user_id=user.UserId, is_active=True).first()
+        if not selected_card:
+            flash('请选择有效的银行卡', 'error')
+            return redirect(url_for('web.bank.pay', payment_id=payment_id))
+
+        # Store selected card in session
+        session['selected_card_id'] = selected_card_id
+
+        # Send captcha
+        captcha_manager = CaptchaManager(user)
+        captcha_manager.generate_captcha()
+        captcha_manager.send_captcha_email('支付验证码', 'email/pay_captcha.html')
+
+        flash('验证码已发送到您的邮箱，请查收', 'info')
+        return redirect(url_for('web.bank.confirm_payment'))
+
+    else:
+        # Get buyer's bank cards
+        buyer_cards = BankCard.query.filter_by(user_id=user.UserId, is_active=True).all()
+        if not buyer_cards:
+            flash('您没有可用的银行卡，请先申请并激活银行卡', 'error')
+            return redirect(url_for('bank.dashboard'))
+
+        total_amount = payment_dict.get('total_amount')
+        return render_template('bank/select_card.html', cards=buyer_cards, total_amount=total_amount)
+
+
+@bank_bp.route('/confirm_payment', methods=['GET', 'POST'])
+def confirm_payment():
+    payment_id = session.get('current_payment_id')
+    payment_data = PaymentCache.query.filter_by(payment_id=payment_id).first()
+    payment_dict = payment_data.to_dict()
+    if not payment_dict:
+        flash("错误，没有找到订单信息","error")
+        return redirect(url_for("web.bank.dashboard"))
+    user = BankUser.query.get(payment_dict.get('buyer_bank_user_id'))
+
+    if request.method == 'POST':
+        pay_password = request.form.get('pay_password')
+        captcha = request.form.get('captcha')
+
+        if not user.verify_payPassword(pay_password):
+            flash('支付密码错误', 'error')
+            return redirect(url_for('web.bank.confirm_payment'))
+
+        captcha_manager = CaptchaManager(user)
+        if not captcha_manager.verify_captcha(captcha):
+            flash('验证码错误或已过期', 'error')
+            return redirect(url_for('web.bank.confirm_payment'))
+
+        # Perform payments
+        selected_card_id = session.get('selected_card_id')
+        selected_card = BankCard.query.filter_by(CardId=selected_card_id, user_id=user.UserId, is_active=True).first()
+
+        seller_payments = json.loads(payment_dict.get('seller_payments'))
+        total_amount = float(payment_dict.get('total_amount'))
+
+        if selected_card.balance < total_amount:
+            flash('余额不足', 'error')
+            return redirect(url_for('web.bank.dashboard'))
+
+        for seller_bank_user_id, amount in seller_payments.items():
+            seller_card = BankCard.query.filter_by(user_id=seller_bank_user_id, is_active=True).first()
+            if not seller_card:
+                flash(f'卖家 {seller_bank_user_id} 没有有效的银行卡', 'error')
+                continue
+
+            # Transfer amount
+            if selected_card.withdraw(amount):
+                seller_card.deposit(amount)
+                db.session.commit()
+
+                # Record transaction
+                transaction = Transaction(
+                    sender_id=user.UserId,
+                    recipient_id=seller_bank_user_id,
+                    amount=amount,
+                    transaction_type=f'Order-{payment_dict["order_ids"]}',
+                    status='SUCCESS'
+                )
+                db.session.add(transaction)
+                db.session.commit()
+            else:
+                flash(f'支付给卖家 {seller_bank_user_id} 失败', 'error')
+
+        flash('支付完成', 'success')
+        # Clear payment session data
+        session.pop(payment_id, None)
+        session.pop('current_payment_id', None)
+        session.pop('selected_card_id', None)
+        return redirect(url_for('web.bank.dashboard'))
+
+    else:
+        total_amount = payment_dict.get('total_amount')
+        return render_template('bank/confirm_payment.html', total_amount=total_amount)
+
+
 @bank_bp.route('/verify_order_captcha', methods=['POST'])
 @jwt_required()
 def verify_order_captcha():
     user_id = get_jwt_identity()
     user = BankUser.query.get(user_id)
 
-    captcha = request.form['captcha']
-    order_id = request.form['order_id']
-    buyer_id = request.form['buyer_id']
-    seller_id = request.form['seller_id']
-    amount = float(request.form['amount'])
+    pay_password = request.form.get('pay_password')
+    captcha = request.form.get('captcha')
 
-    # 验证验证码
+    if not user.verify_payPassword(pay_password):
+        flash('支付密码错误', 'error')
+        return redirect(url_for('bank.dashboard'))
+
     captcha_manager = CaptchaManager(user)
-    if captcha_manager.verify_captcha(captcha):
-        # 获取付款银行卡
-        sender_card = BankCard.query.filter_by(user_id=user.UserId).first()  # 假设用户有一张默认卡
-        if sender_card.balance < amount:
-            flash('余额不足', 'error')
-            return redirect(url_for('web.bank.transfer'))
+    if not captcha_manager.verify_captcha(captcha):
+        flash('验证码错误或已过期', 'error')
+        return redirect(url_for('bank.dashboard'))
 
-        # 获取卖家银行用户ID
-        recipient_card = BankCard.query.filter_by(user_id=seller_id).first()
+    selected_card_id = session.get('selected_card_id')
+    selected_card = BankCard.query.filter_by(CardId=selected_card_id, user_id=user.UserId).first()
 
-        # 执行转账
-        if sender_card.withdraw(amount):
-            recipient_card.deposit(amount)
+    seller_payments = session.get('seller_payments')
+    total_amount = float(session.get('total_amount'))
+
+    if selected_card.balance < total_amount:
+        flash('余额不足', 'error')
+        return redirect(url_for('bank.dashboard'))
+
+    for seller_bank_user_id, amount in seller_payments.items():
+        seller_card = BankCard.query.filter_by(user_id=seller_bank_user_id, is_active=True).first()
+        if not seller_card:
+            flash(f'卖家 {seller_bank_user_id} 没有有效的银行卡', 'error')
+            continue
+
+        if selected_card.withdraw(amount):
+            seller_card.deposit(amount)
             db.session.commit()
 
-            # 记录交易
             transaction = Transaction(
                 sender_id=user.UserId,
-                recipient_id=recipient_card.user_id,
+                recipient_id=seller_bank_user_id,
                 amount=amount,
-                transaction_type=f"Order-{order_id}",  # 记录订单ID
+                transaction_type=f'Order-{session.get("order_ids")}',
                 status='SUCCESS'
             )
             db.session.add(transaction)
             db.session.commit()
+        else:
+            flash(f'支付给卖家 {seller_bank_user_id} 失败', 'error')
 
-            flash('支付成功', 'success')
-            return redirect(url_for('web.bank.transaction_history'))
-
-    else:
-        flash('验证码错误或已过期', 'error')
-
-    return redirect(url_for('web.bank.transfer'))
+    flash('支付完成', 'success')
+    session.pop('seller_payments', None)
+    session.pop('total_amount', None)
+    session.pop('order_ids', None)
+    session.pop('selected_card_id', None)
+    return redirect(url_for('bank.dashboard'))

@@ -1,7 +1,7 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
-import datetime
+from datetime import datetime
 import glob
 import os
 from uuid import uuid4
@@ -21,6 +21,7 @@ from ..models.Order import Order
 from ..models.ShopUser import ShopUser
 from ..models.base import db
 from ..utils.create_order import generate_order_number, calculate_total
+from ..utils.decorator import verify_bank_certificate
 from ..utils.save_images import save_image
 
 shop_bp = Blueprint('shop', __name__)
@@ -55,14 +56,16 @@ def upload_item():
         description = request.form.get('description')
         image = request.files.get('image')
 
+        if not current_user.bank_user_id:
+            flash("请先绑定银行账户", 'error')
+            return redirect(url_for("web.shop.profile"))
+
         if not all([item_name, item_type, price, description, image]):
             flash('所有字段都是必需的', 'error')
             return redirect(url_for('web.shop.upload_item'))
 
-        # 保存图片并获取存储路径
         image_path = save_image(image, current_user.UserId)
 
-        # 创建商品记录
         item = Item(
             Item_name=item_name,
             Item_type=item_type,
@@ -101,36 +104,80 @@ def add_to_cart(item_id):
     return redirect(url_for('web.shop.cart'))
 
 
-@shop_bp.route('/checkout', methods=['POST'])
+@shop_bp.route('/checkout', methods=['GET', 'POST'])
 @login_required
-def checkout():
+@verify_bank_certificate
+def checkout(*args, **kwargs):
+    verify = kwargs.get('verify')
     cart_items = CartItem.query.filter_by(user_id=current_user.UserId).all()
     if not cart_items:
         flash('购物车为空', 'error')
-        return redirect(url_for('web.shop.cart'))
+        return redirect(url_for('shop.cart'))
 
-    # 创建订单
-    order = Order(
-        order_number=generate_order_number(),
-        buyer_id=current_user.UserId,
-        amount=calculate_total(cart_items),
-        order_time=datetime.utcnow(),
-        details='购买商品'
-    )
-    db.session.add(order)
+    if not current_user.bank_user_id:
+        flash('请先绑定银行账户', 'error')
+        return redirect(url_for('shop.cart'))
+
+    # Collect seller bank_user_ids and order details
+    seller_payments = {}
+    total_amount = 0
+    for cart_item in cart_items:
+        seller = cart_item.item.owner
+        if not seller.bank_user_id:
+            flash(f'商品 {cart_item.item.Item_name} 的卖家未绑定银行账户', 'error')
+            return redirect(url_for('shop.cart'))
+
+        amount = cart_item.item.price * cart_item.quantity
+        total_amount += amount
+
+        if seller.bank_user_id not in seller_payments:
+            seller_payments[seller.bank_user_id] = amount
+        else:
+            seller_payments[seller.bank_user_id] += amount
+
+    # Create orders for each seller and save to database
+    orders = []
+    for seller_bank_user_id, amount in seller_payments.items():
+        order = Order(
+            order_number=generate_order_number(),
+            buyer_id=current_user.UserId,
+            seller_id=None,  # We don't have seller_id in bank, set None or keep track if needed
+            amount=amount,
+            order_time=datetime.utcnow(),
+            details= "购买商品",
+        )
+        db.session.add(order)
+        orders.append(order)
+
     db.session.commit()
 
-    # 获取卖家银行用户ID
-    seller_id = cart_items[0].item.owner_id
-    seller = ShopUser.query.get(seller_id)
-    bank_user_id = seller.bank_user_id  # 获取卖家的 bank_user_id
+    # Prepare data for bank payment
+    payment_data = {
+        'buyer_bank_user_id': current_user.bank_user_id,
+        'seller_payments': seller_payments,
+        'total_amount': total_amount,
+        'order_ids': [order.order_number for order in orders],
+    }
 
-    if not bank_user_id:
-        flash('商家没有绑定银行账户', 'error')
+    # Create payment session with bank
+    bank_create_payment_url = 'https://127.0.0.1:5000/bank/create_payment'
+    try:
+        response = requests.post(bank_create_payment_url, json=payment_data, verify=verify)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        flash('支付请求失败，请稍后再试', 'error')
         return redirect(url_for('web.shop.cart'))
 
-    # 跳转到银行支付页面
-    return redirect(url_for('web.bank.pay', order_id=order.OrderId, bank_user_id=bank_user_id))
+    payment_info = response.json()
+    payment_id = payment_info.get('payment_id')
+    if not payment_id:
+        flash('支付请求失败', 'error')
+        return redirect(url_for('web.shop.cart'))
+    # Redirect user to bank payment page
+    bank_payment_url = f'https://127.0.0.1:5000/bank/pay?payment_id={payment_id}'
+    response = redirect(f'https://127.0.0.1:5000/bank/pay?payment_id={payment_id}')
+    response.set_cookie('payment_id', payment_id, max_age=6000, httponly=True)
+    return response
 
 
 # 支付订单

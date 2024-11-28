@@ -1,7 +1,7 @@
 # encoding=utf-8
 __author__ = 'Zephyr369'
 
-import datetime
+from datetime import datetime
 import random
 import string
 

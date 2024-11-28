@@ -16,8 +16,8 @@ class Order(Base):
     OrderId = Column(Integer, primary_key=True)
     order_number = Column(String(50), unique=True, nullable=False)
     buyer_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)
-    seller_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=False)
-    store_id = Column(Integer, ForeignKey('item.ItemId'), nullable=False)
+    seller_id = Column(Integer, ForeignKey('shop_user.UserId'), nullable=True)  # 设置为允许 NULL
+    store_id = Column(Integer, ForeignKey('item.ItemId'), nullable=True)
     amount = Column(Float, nullable=False)
     order_time = Column(DateTime, default=datetime.utcnow)
     details = Column(String(255), nullable=False)
