@@ -2,23 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CA Certificate Authority</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <nav>
-        <a href="{{ url_for('web.index') }}">首页</a>
-        <a href="{{ url_for('web.certificates') }}">证书管理</a>
-        <a href="{{ url_for('web.issue_certificate_view') }}">颁发证书</a>
+<body class="bg-gray-100 font-sans text-gray-800">
+    <!-- Navbar -->
+    <nav class="bg-blue-600 p-4 text-white">
+        <div class="container mx-auto flex space-x-6">
+            <a href="{{ url_for('web.index') }}" class="hover:text-blue-200">首页</a>
+            <a href="{{ url_for('web.certificates') }}" class="hover:text-blue-200">证书管理</a>
+            <a href="{{ url_for('web.issue_certificate_view') }}" class="hover:text-blue-200">颁发证书</a>
+        </div>
     </nav>
-    <div class="container">
+
+    <!-- Main content -->
+    <div class="container mx-auto p-6">
         {% with messages = get_flashed_messages(with_categories=True) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
+                <div class="my-4">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} bg-green-100 text-green-800 p-4 rounded mb-4">{{ message }}</div>
+                    {% endfor %}
+                </div>
             {% endif %}
         {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
 </body>
